@@ -4,115 +4,96 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Registro de Presión Arterial</title>
-    <!-- Carga de Tailwind CSS -->
+    <!-- Carga de Librerías -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Carga de Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Carga de jsPDF y jsPDF-AutoTable -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
     
     <style>
-        /* Estilo para iconos de Google */
-        .google-icon {
-            width: 20px;
-            height: 20px;
-            margin-right: 10px;
-            display: inline-block;
-        }
+        .google-icon { width: 20px; height: 20px; margin-right: 10px; display: inline-block; }
+        #bpChart { height: 320px; }
+        /* Transición para ocultar/mostrar secciones */
+        .hidden-transition { opacity: 0; transition: opacity 0.5s ease-in-out; }
     </style>
 
-    <!-- Carga de Firebase -->
+    <!-- Carga e Inicialización de Firebase -->
     <script type="module">
-        // --- CONFIGURACIÓN DE FIREBASE ---
-        // Importa las funciones necesarias de los SDK de Firebase
+        // ======================================================================================
+        //  !!! INSTRUCCIÓN CRÍTICA: REEMPLAZA ESTA CONFIGURACIÓN CON TUS CLAVES REALES DE FIREBASE !!!
+        //  Si estos valores son incorrectos o faltan, la aplicación fallará y se verá en blanco.
+        // ======================================================================================
+        const FIREBASE_CONFIG = {
+            apiKey: "TU_API_KEY_DE_FIREBASE_AQUI", // <--- REEMPLAZAR
+            authDomain: "tu-dominio.firebaseapp.com", // <--- REEMPLAZAR
+            projectId: "tu-project-id", // <--- REEMPLAZAR
+            storageBucket: "tu-project-id.appspot.com",
+            messagingSenderId: "123456789012",
+            appId: "1:123456789012:web:abcdef1234567890"
+        };
+        const CANVAS_APP_ID = "bp-tracker-pro"; // ID de la app para la ruta de datos
+        // ======================================================================================
+        //  !!! FIN DE LA CONFIGURACIÓN CRÍTICA !!!
+        // ======================================================================================
+
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { 
-            getAuth, 
-            signInAnonymously, 
-            signInWithCustomToken, 
-            onAuthStateChanged,
-            GoogleAuthProvider,
-            signInWithPopup,
-            createUserWithEmailAndPassword,
-            signInWithEmailAndPassword,
-            signOut
+            getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup,
+            createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut
         } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { 
-            getFirestore, 
-            doc, 
-            setDoc, 
-            addDoc, 
-            deleteDoc, 
-            onSnapshot, 
-            collection, 
-            query, 
-            orderBy,
-            Timestamp,
-            setLogLevel
+            getFirestore, doc, addDoc, deleteDoc, onSnapshot, collection, query, 
+            orderBy, Timestamp
         } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // --- VARIABLES GLOBALES DE FIREBASE ---
-       
-// Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
+        let db, auth, userId;
+        let readingsListener = null;
+        let bpChart = null;
+        let currentReadings = [];
 
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
-  apiKey: "AIzaSyDeQkS7ySEBaJYUlznNY7GODm4hSiJOYJo",
-  authDomain: "registro-presion-arterial.firebaseapp.com",
-  projectId: "registro-presion-arterial",
-  storageBucket: "registro-presion-arterial.firebasestorage.app",
-  messagingSenderId: "365700147450",
-  appId: "1:365700147450:web:4100d578b052d48e808143",
-  measurementId: "G-HJ6W83BE3F"
-};
-
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);        // Elementos del DOM
-        let form, historyContainer, loadingIndicator, errorMessage, successMessage, reminderTimeInput, reminderFrequencyInput;
+        // Elementos del DOM
+        let form, historyContainer, loadingIndicator, errorMessage, successMessage;
         let authSection, appContent, signOutBtn, userEmailDisplay;
         let emailForm, googleSignInBtn, switchAuthBtn, authTitle;
 
         // --- INICIALIZACIÓN DE LA APP ---
         document.addEventListener('DOMContentLoaded', async () => {
-            // Inicializar Firebase
             try {
-                const app = initializeApp(firebaseConfig);
+                // Verificar que las claves críticas hayan sido reemplazadas (check simple)
+                if (FIREBASE_CONFIG.apiKey.includes("TU_API_KEY_DE_FIREBASE_AQUI")) {
+                    // Si falla aquí, muestra un mensaje de error directo al usuario en el body
+                    document.body.innerHTML = `
+                        <div class="p-8 text-center bg-red-100 text-red-700">
+                            <h1 class="text-2xl font-bold mb-4">¡ERROR CRÍTICO! La aplicación no puede iniciar.</h1>
+                            <p class="mb-2">1. Asegúrate de haber reemplazado todas las claves en el código fuente de tu ${document.title} con tus credenciales de Firebase.</p>
+                            <p>2. Si ya lo hiciste y sigue fallando, verifica que los servicios de Firebase (Authentication y Firestore) estén habilitados en tu consola.</p>
+                        </div>
+                    `;
+                    throw new Error("Claves de Firebase no reemplazadas. La app no puede conectarse.");
+                }
+
+                const app = initializeApp(FIREBASE_CONFIG);
                 db = getFirestore(app);
                 auth = getAuth(app);
-                setLogLevel('Debug');
-
-                // Cachear elementos del DOM y configurar listeners
+                
                 cacheDOMElements();
                 setupEventListeners();
-                
-                // Configurar el Listener de Autenticación
                 setupAuthListener();
 
             } catch (error) {
-                console.error("Error al inicializar Firebase:", error);
-                showError("Error al conectar con la base de datos o autenticación. Recarga la página.");
+                console.error("Error crítico de inicialización:", error);
+                // El error se maneja en el bloque de arriba si es por credenciales.
             }
         });
 
-        // --- CACHE DE ELEMENTOS DEL DOM ---
+        // --- Funciones auxiliares para el DOM, Autenticación y CRUD (Detalles dentro del archivo) ---
         function cacheDOMElements() {
-            // Main app elements
             form = document.getElementById('bp-form');
             historyContainer = document.getElementById('history-container');
             loadingIndicator = document.getElementById('loading');
             errorMessage = document.getElementById('error-message');
             successMessage = document.getElementById('success-message');
-            reminderTimeInput = document.getElementById('reminder-time');
-            reminderFrequencyInput = document.getElementById('reminder-frequency');
 
-            // Auth elements
             authSection = document.getElementById('auth-section');
             appContent = document.getElementById('app-content');
             signOutBtn = document.getElementById('sign-out-btn');
@@ -122,13 +103,10 @@ const analytics = getAnalytics(app);        // Elementos del DOM
             switchAuthBtn = document.getElementById('switch-auth-btn');
             authTitle = document.getElementById('auth-title');
 
-            // Set default date/time
             setDefaultDateTime();
         }
 
-        // --- CONFIGURACIÓN DE EVENT LISTENERS ---
         function setupEventListeners() {
-            // App listeners
             form.addEventListener('submit', handleSaveReading);
             historyContainer.addEventListener('click', (e) => {
                 if (e.target.closest('.delete-btn')) {
@@ -139,16 +117,12 @@ const analytics = getAnalytics(app);        // Elementos del DOM
             document.getElementById('export-pdf-btn').addEventListener('click', handleExportPDF);
             document.getElementById('add-to-calendar-btn').addEventListener('click', handleAddToGoogleCalendar);
             signOutBtn.addEventListener('click', handleSignOut);
-
-            // Auth listeners
             googleSignInBtn.addEventListener('click', handleGoogleSignIn);
             emailForm.addEventListener('submit', handleEmailAuth);
             switchAuthBtn.addEventListener('click', switchAuthMode);
         }
 
-        // --- AUTENTICACIÓN Y MANEJO DE ESTADO ---
-
-        let isSignInMode = true; // Estado para alternar entre Iniciar Sesión y Registrarse
+        let isSignInMode = true;
 
         function switchAuthMode() {
             isSignInMode = !isSignInMode;
@@ -166,40 +140,31 @@ const analytics = getAnalytics(app);        // Elementos del DOM
         function setupAuthListener() {
             onAuthStateChanged(auth, async (user) => {
                 if (user) {
-                    // Si el usuario se autentica por custom token, lo hace automáticamente
-                    // El resto de usuarios usará Google o Email/Password
                     userId = user.uid;
-                    userEmailDisplay.textContent = user.email || 'Usuario anónimo';
+                    userEmailDisplay.textContent = user.email || 'ID de Usuario (sin correo)';
                     
-                    // Mostrar Contenido de la App
-                    appContent.classList.remove('hidden');
-                    authSection.classList.add('hidden');
-                    console.log("Usuario autenticado:", user.uid);
-                    
-                    // Cargar datos
+                    authSection.classList.add('hidden-transition');
+                    setTimeout(() => {
+                        authSection.classList.add('hidden');
+                        appContent.classList.remove('hidden');
+                        appContent.classList.remove('hidden-transition');
+                    }, 500);
+
                     setupReadingsListener();
                 } else {
-                    // Intentar iniciar sesión con Custom Token (necesario para el entorno Canvas)
-                    if (initialAuthToken) {
-                         try {
-                            await signInWithCustomToken(auth, initialAuthToken);
-                            return; // El listener se volverá a ejecutar con el usuario logueado
-                        } catch (error) {
-                            console.error("Error en la autenticación con token. Mostrando pantalla de Login.", error);
-                        }
-                    }
-
-                    // No hay usuario autenticado (o es anónimo/token expirado)
                     userId = null;
-                    if (readingsListener) { readingsListener(); readingsListener = null; } // Detener escucha de datos
+                    if (readingsListener) { readingsListener(); readingsListener = null; }
                     currentReadings = [];
                     renderReadings([]);
                     updateChart([]);
                     
-                    // Mostrar Sección de Autenticación
-                    appContent.classList.add('hidden');
-                    authSection.classList.remove('hidden');
-                    loadingIndicator.classList.add('hidden'); // Ocultar si estaba cargando
+                    appContent.classList.add('hidden-transition');
+                    setTimeout(() => {
+                        appContent.classList.add('hidden');
+                        authSection.classList.remove('hidden');
+                        authSection.classList.remove('hidden-transition');
+                    }, 500);
+                    loadingIndicator.classList.add('hidden');
                 }
             });
         }
@@ -209,7 +174,6 @@ const analytics = getAnalytics(app);        // Elementos del DOM
             try {
                 await signInWithPopup(auth, provider);
                 showSuccess("Inicio de sesión con Google exitoso.");
-                // onAuthStateChanged se encarga de mostrar la app
             } catch (error) {
                 console.error("Error Google Sign In:", error);
                 showError("Fallo al iniciar sesión con Google.");
@@ -222,7 +186,6 @@ const analytics = getAnalytics(app);        // Elementos del DOM
             const password = e.target.password.value;
 
             if (isSignInMode) {
-                // Iniciar Sesión con Email/Password
                 try {
                     await signInWithEmailAndPassword(auth, email, password);
                     showSuccess("Inicio de sesión exitoso.");
@@ -231,7 +194,6 @@ const analytics = getAnalytics(app);        // Elementos del DOM
                     showError("Error al iniciar sesión: Credenciales incorrectas o usuario no encontrado.");
                 }
             } else {
-                // Registrarse con Email/Password
                 try {
                     await createUserWithEmailAndPassword(auth, email, password);
                     showSuccess("Registro exitoso. ¡Bienvenido!");
@@ -242,7 +204,7 @@ const analytics = getAnalytics(app);        // Elementos del DOM
                     } else if (error.code === 'auth/email-already-in-use') {
                         showError('Esa dirección de correo ya está registrada. Prueba a Iniciar Sesión.');
                     } else {
-                        showError("Fallo en el registro. Verifica el correo o la contraseña.");
+                        showError("Fallo en el registro.");
                     }
                 }
             }
@@ -252,77 +214,49 @@ const analytics = getAnalytics(app);        // Elementos del DOM
             try {
                 await signOut(auth);
                 showSuccess("Sesión cerrada correctamente.");
-                // onAuthStateChanged se encarga de ocultar la app
             } catch (error) {
                 console.error("Error al cerrar sesión:", error);
                 showError("Fallo al cerrar sesión.");
             }
         }
 
-
-        // --- LÓGICA DE RECORDATORIOS (SIMPLIFICADA) ---
         function handleAddToGoogleCalendar(e) {
             e.preventDefault();
+            const time = document.getElementById('reminder-time').value;
+            const frequency = parseInt(document.getElementById('reminder-frequency').value) || 1;
             
-            // Leer valores directamente de los inputs
-            const time = reminderTimeInput.value;
-            const frequency = parseInt(reminderFrequencyInput.value) || 1;
-            
-            if (!time || !frequency) {
-                showError("Por favor, selecciona una hora y frecuencia.");
-                return;
-            }
-            if (!userId) {
-                showError("Debes iniciar sesión para usar esta función.");
+            if (!time || !frequency || !userId) {
+                showError("Selecciona hora/frecuencia e inicia sesión.");
                 return;
             }
 
             const [hours, minutes] = time.split(':');
-            
-            // 1. Calcular la próxima fecha de inicio
             let startDate = new Date();
             startDate.setHours(hours, minutes, 0, 0);
-            
-            if (new Date() > startDate) {
-                // Si la hora de hoy ya pasó, programar para mañana
-                startDate.setDate(startDate.getDate() + 1);
-            }
+            if (new Date() > startDate) { startDate.setDate(startDate.getDate() + 1); }
+            let endDate = new Date(startDate.getTime() + 15 * 60000); 
 
-            // 2. Calcular fecha de fin (ej. 15 minutos de duración)
-            let endDate = new Date(startDate.getTime() + 15 * 60000); // +15 minutos
-
-            // 3. Formatear fechas a UTC (formato YYYYMMDDTHHmmSSZ)
-            const toUTCFormat = (date) => {
-                return date.toISOString().replace(/-|:|\.\d+/g, '');
-            };
+            const toUTCFormat = (date) => date.toISOString().replace(/-|:|\.\d+/g, '');
             const utcStartDate = toUTCFormat(startDate);
             const utcEndDate = toUTCFormat(endDate);
 
-            // 4. Crear la regla de repetición
             const recurrenceRule = `RRULE:FREQ=DAILY;INTERVAL=${frequency}`;
-
-            // 5. Construir la URL
             const title = encodeURIComponent("🩺 Tomar Presión Arterial");
-            const details = encodeURIComponent("Recordatorio para registrar la presión arterial. Creado desde la app de seguimiento.");
+            const details = encodeURIComponent("Recordatorio para registrar la presión arterial.");
             const dates = `${utcStartDate}/${utcEndDate}`;
 
             const url = `https://www.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${dates}&details=${details}&recur=${recurrenceRule}&sf=true&output=xml`;
-
-            // 6. Abrir en nueva pestaña
             window.open(url, '_blank');
         }
 
-
-        // --- LÓGICA DE MEDICIONES (CRUD) ---
-
         function setupReadingsListener() {
             if (!userId) return;
-            
-            if (readingsListener) { readingsListener(); } // Detener escucha anterior
+            if (readingsListener) { readingsListener(); }
 
             loadingIndicator.classList.remove('hidden');
             
-            const collectionRef = collection(db, `artifacts/${appId}/users/${userId}`, 'bp_readings');
+            // Ruta de la colección privada: /artifacts/{appId}/users/{userId}/bp_readings
+            const collectionRef = collection(db, `artifacts/${CANVAS_APP_ID}/users/${userId}`, 'bp_readings');
             const q = query(collectionRef, orderBy("timestamp", "desc"));
 
             readingsListener = onSnapshot(q, (querySnapshot) => {
@@ -335,15 +269,13 @@ const analytics = getAnalytics(app);        // Elementos del DOM
                 renderReadings(readings);
                 updateChart(readings);
             }, (error) => {
-                console.error("Error al escuchar mediciones:", error);
-                showError("Error al cargar el historial de mediciones.");
+                console.error("Error al escuchar mediciones. (REGLAS DE SEGURIDAD PROBABLEMENTE FALTAN):", error);
+                showError("Error al cargar el historial. ¡Revisa las Reglas de Seguridad de Firestore!");
                 loadingIndicator.classList.add('hidden');
             });
         }
-
-        // Renderizar la lista de mediciones (lógica omitida para brevedad, ya existe)
+        
         function renderReadings(readings) {
-            // ... (implementación existente)
             historyContainer.innerHTML = '';
             if (readings.length === 0) {
                 historyContainer.innerHTML = '<p class="text-gray-500 text-center">No hay mediciones guardadas. ¡Empieza a registrar datos!</p>';
@@ -354,39 +286,31 @@ const analytics = getAnalytics(app);        // Elementos del DOM
                 const card = document.createElement('div');
                 const { categoryClass, categoryText } = getBpCategory(reading.systolic, reading.diastolic);
                 
-                const date = reading.timestamp.toDate();
-                const formattedDate = date.toLocaleString('es-ES', { 
-                    year: 'numeric', 
-                    month: 'long', 
-                    day: 'numeric', 
-                    hour: '2-digit', 
-                    minute: '2-digit' 
-                });
+                // Asegurar que 'timestamp' es un objeto Timestamp antes de llamar a toDate()
+                let date;
+                if (reading.timestamp && typeof reading.timestamp.toDate === 'function') {
+                    date = reading.timestamp.toDate();
+                } else if (reading.timestamp instanceof Date) {
+                    date = reading.timestamp;
+                } else {
+                    date = new Date(); // Fallback
+                }
+                
+                const formattedDate = date.toLocaleString('es-ES', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 
-                card.className = `relative p-4 rounded-lg shadow-md border-l-4 ${categoryClass}`;
+                card.className = `relative p-4 rounded-lg shadow-md border-l-4 ${categoryClass.replace('border-', 'border-l-4 border-')}`;
                 card.innerHTML = `
                     <button data-id="${reading.id}" class="delete-btn absolute top-2 right-2 text-gray-400 hover:text-red-600" title="Borrar">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
                     <div class="flex items-center justify-between mb-2">
                         <span class="font-bold text-lg text-gray-800">${formattedDate}</span>
                         <span class="text-xs font-semibold px-2 py-0.5 rounded-full ${categoryClass.replace('border-', 'bg-').replace('-200', '-100').replace('bg-opacity-50', '')}">${categoryText}</span>
                     </div>
-                    <div class="flex justify-around items-baseline">
-                        <div class="text-center">
-                            <span class="text-sm text-gray-600">Sistólica</span>
-                            <p class="text-2xl font-bold text-gray-900">${reading.systolic}</p>
-                        </div>
-                        <div class="text-center">
-                            <span class="text-sm text-gray-600">Diastólica</span>
-                            <p class="text-2xl font-bold text-gray-900">${reading.diastolic}</p>
-                        </div>
-                        <div class="text-center">
-                            <span class="text-sm text-gray-600">Pulso</span>
-                            <p class="text-2xl font-bold text-gray-900">${reading.pulse}</p>
-                        </div>
+                    <div class="grid grid-cols-3 text-center">
+                        <div><span class="text-sm text-gray-600">Sistólica</span><p class="text-2xl font-bold text-gray-900">${reading.systolic}</p></div>
+                        <div><span class="text-sm text-gray-600">Diastólica</span><p class="text-2xl font-bold text-gray-900">${reading.diastolic}</p></div>
+                        <div><span class="text-sm text-gray-600">Pulso</span><p class="text-2xl font-bold text-gray-900">${reading.pulse}</p></div>
                     </div>
                     ${reading.notes ? `<p class="mt-2 text-sm text-gray-700 italic"><strong>Notas:</strong> ${reading.notes}</p>` : ''}
                 `;
@@ -394,22 +318,23 @@ const analytics = getAnalytics(app);        // Elementos del DOM
             });
         }
 
-
-        // Actualizar gráfico (lógica omitida para brevedad, ya existe)
         function updateChart(readings) {
             const ctx = document.getElementById('bpChart').getContext('2d');
-
             if (bpChart) { bpChart.destroy(); }
-
             if (readings.length === 0) { return; }
 
             const chartReadings = [...readings].reverse();
+            
+            const labels = chartReadings.map(r => {
+                let date;
+                if (r.timestamp && typeof r.timestamp.toDate === 'function') {
+                    date = r.timestamp.toDate();
+                } else {
+                    date = new Date(); // Fallback
+                }
+                return date.toLocaleString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'});
+            });
 
-            const labels = chartReadings.map(r => 
-                r.timestamp.toDate().toLocaleString('es-ES', { 
-                    day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
-                })
-            );
             const systolicData = chartReadings.map(r => r.systolic);
             const diastolicData = chartReadings.map(r => r.diastolic);
             const pulseData = chartReadings.map(r => r.pulse);
@@ -424,21 +349,13 @@ const analytics = getAnalytics(app);        // Elementos del DOM
                         { label: 'Pulso', data: pulseData, borderColor: 'rgb(234, 179, 8)', backgroundColor: 'rgba(234, 179, 8, 0.1)', fill: false, tension: 0.1, hidden: true }
                     ]
                 },
-                options: {
-                    responsive: true, maintainAspectRatio: false,
-                    scales: { y: { beginAtZero: false, suggestedMin: 50, suggestedMax: 160 } },
-                    plugins: { tooltip: { mode: 'index', intersect: false }, legend: { position: 'top' } }
-                }
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: false, suggestedMin: 50, suggestedMax: 160 } }, plugins: { tooltip: { mode: 'index', intersect: false }, legend: { position: 'top' } } }
             });
         }
 
-        // Guardar una nueva medición
         async function handleSaveReading(e) {
             e.preventDefault();
-            if (!userId) {
-                showError("Debes iniciar sesión para guardar mediciones.");
-                return;
-            }
+            if (!userId) { showError("Debes iniciar sesión para guardar mediciones."); return; }
 
             const systolic = parseInt(form.systolic.value);
             const diastolic = parseInt(form.diastolic.value);
@@ -446,82 +363,48 @@ const analytics = getAnalytics(app);        // Elementos del DOM
             const notes = form.notes.value;
             const readingTime = form['reading-time'].value;
 
-            if (!systolic || !diastolic || !pulse || !readingTime) {
-                showError("Por favor, completa todos los campos de medición.");
-                return;
-            }
-
-            const timestamp = Timestamp.fromDate(new Date(readingTime));
+            if (!systolic || !diastolic || !pulse || !readingTime) { showError("Por favor, completa todos los campos de medición."); return; }
+            
+            // Convertir la cadena local de datetime-local a objeto Date y luego a Firebase Timestamp
+            const localDate = new Date(readingTime);
+            const timestamp = Timestamp.fromDate(localDate);
 
             try {
-                const collectionRef = collection(db, `artifacts/${appId}/users/${userId}`, 'bp_readings');
-                await addDoc(collectionRef, {
-                    systolic, diastolic, pulse, notes, timestamp
-                });
-                
+                const collectionRef = collection(db, `artifacts/${CANVAS_APP_ID}/users/${userId}`, 'bp_readings');
+                await addDoc(collectionRef, { systolic, diastolic, pulse, notes, timestamp });
                 showSuccess("Medición guardada correctamente.");
                 form.reset();
                 setDefaultDateTime();
             } catch (error) {
                 console.error("Error al guardar medición:", error);
-                showError("No se pudo guardar la medición.");
+                showError("No se pudo guardar la medición. Revisa las reglas de seguridad.");
             }
         }
 
-        // --- LÓGICA DE EXPORTACIÓN PDF --- (sin cambios)
         function handleExportPDF() {
-            if (currentReadings.length === 0) {
-                showError("No hay datos para exportar a PDF.");
-                return;
-            }
+            if (currentReadings.length === 0) { showError("No hay datos para exportar a PDF."); return; }
 
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
 
-            doc.setFontSize(18);
-            doc.text("Historial de Presión Arterial", 14, 22);
-            
-            doc.setFontSize(10);
-            doc.text(`Exportado el: ${new Date().toLocaleString('es-ES')}`, 14, 28);
-            if (userId) {
-                doc.text(`Usuario: ${auth.currentUser.email || 'ID: ' + userId.substring(0, 10) + '...'}`, 14, 32);
-            }
+            doc.setFontSize(18); doc.text("Historial de Presión Arterial", 14, 22);
+            doc.setFontSize(10); doc.text(`Exportado el: ${new Date().toLocaleString('es-ES')}`, 14, 28);
+            if (userId && auth.currentUser) { doc.text(`Usuario: ${auth.currentUser.email || 'ID: ' + userId.substring(0, 10) + '...'}`, 14, 32); }
 
             const tableColumns = ["Fecha y Hora", "Sistólica", "Diastólica", "Pulso", "Notas"];
+            const tableRows = [...currentReadings].reverse().map(reading => [
+                reading.timestamp.toDate().toLocaleString('es-ES', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+                reading.systolic, reading.diastolic, reading.pulse, reading.notes || ""
+            ]);
 
-            const tableRows = [...currentReadings].reverse().map(reading => {
-                const date = reading.timestamp.toDate();
-                const formattedDate = date.toLocaleString('es-ES', { 
-                    year: 'numeric', month: 'short', day: 'numeric', 
-                    hour: '2-digit', minute: '2-digit' 
-                });
-                return [
-                    formattedDate,
-                    reading.systolic,
-                    reading.diastolic,
-                    reading.pulse,
-                    reading.notes || ""
-                ];
-            });
-
-            doc.autoTable({
-                head: [tableColumns],
-                body: tableRows,
-                startY: 40,
-                theme: 'striped',
-                headStyles: { fillColor: [59, 130, 246] }
-            });
-
+            doc.autoTable({ head: [tableColumns], body: tableRows, startY: 40, theme: 'striped', headStyles: { fillColor: [59, 130, 246] } });
             doc.save('historial_presion_arterial.pdf');
         }
 
-
-        // Borrar una medición
         async function handleDeleteReading(id) {
             if (!userId || !id) return;
-            
             try {
-                const docRef = doc(db, `artifacts/${appId}/users/${userId}/bp_readings`, id);
+                const docRef = doc(db, `artifacts/${CANVAS_APP_ID}/users/${userId}/bp_readings`, id);
                 await deleteDoc(docRef);
                 showSuccess("Medición borrada.");
             } catch (error) {
@@ -530,10 +413,9 @@ const analytics = getAnalytics(app);        // Elementos del DOM
             }
         }
 
-        // --- FUNCIONES DE UTILIDAD ---
-
         function setDefaultDateTime() {
             const now = new Date();
+            // Esto ajusta la hora para el input datetime-local correctamente
             now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
             const localISO = now.toISOString().slice(0, 16);
             const readingTimeInput = document.getElementById('reading-time');
@@ -549,164 +431,98 @@ const analytics = getAnalytics(app);        // Elementos del DOM
             return { categoryClass: 'border-green-500 bg-green-200 bg-opacity-50', categoryText: 'Normal' };
         }
 
-        function showError(message) {
-            errorMessage.textContent = message;
-            errorMessage.classList.remove('hidden');
-            setTimeout(() => errorMessage.classList.add('hidden'), 4000);
-        }
-
-        function showSuccess(message) {
-            successMessage.textContent = message;
-            successMessage.classList.remove('hidden');
-            setTimeout(() => successMessage.classList.add('hidden'), 3000);
-        }
+        function showError(message) { errorMessage.textContent = message; errorMessage.classList.remove('hidden'); setTimeout(() => errorMessage.classList.add('hidden'), 4000); }
+        function showSuccess(message) { successMessage.textContent = message; successMessage.classList.remove('hidden'); setTimeout(() => successMessage.classList.add('hidden'), 3000); }
     </script>
 </head>
-<body class="bg-gray-100 font-sans leading-normal tracking-normal">
+<body class="bg-gray-100 font-sans leading-normal tracking-normal min-h-screen">
 
     <div class="container mx-auto max-w-2xl p-4 md:p-6">
         
         <!-- Mensajes de estado -->
-        <div id="error-message" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg relative mb-4" role="alert"></div>
-        <div id="success-message" class="hidden bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg relative mb-4" role="alert"></div>
+        <div id="error-message" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg relative mb-4 shadow-lg" role="alert"></div>
+        <div id="success-message" class="hidden bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg relative mb-4 shadow-lg" role="alert"></div>
 
-        <!-- SECCIÓN DE AUTENTICACIÓN (Visible si no está logueado) -->
-        <section id="auth-section" class="flex flex-col items-center justify-center min-h-64 hidden">
+        <!-- SECCIÓN DE AUTENTICACIÓN -->
+        <section id="auth-section" class="flex flex-col items-center justify-center min-h-96">
             <div class="w-full max-w-sm bg-white p-8 rounded-xl shadow-2xl border border-gray-200">
                 <h2 id="auth-title" class="text-3xl font-bold text-center text-blue-700 mb-6">Inicia Sesión</h2>
                 
-                <!-- Botón de Google -->
                 <button id="google-sign-in-btn" class="w-full flex items-center justify-center px-4 py-3 mb-4 text-white font-semibold rounded-lg shadow-md bg-red-500 hover:bg-red-600 transition duration-150">
-                    <svg class="google-icon" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M12.00 4.75a7.21 7.21 0 0 1 5.38 2.08l3.72-3.72C18.23 2.15 15.22 1 12.00 1 7.42 1 3.55 3.32 1.57 6.64l4.22 3.28C6.91 8.78 9.27 7.75 12.00 7.75z" fill="#fff"/>
-                        <path d="M1.57 6.64c-.37 1.1-.58 2.29-.58 3.36 0 1.25.26 2.45.74 3.55l-4.22 3.28c-.5-1.42-.78-2.97-.78-4.63 0-2.3.47-4.48 1.34-6.4l4.22 3.28z" fill="#fff"/>
-                        <path d="M12.00 22.00c3.7 0 6.94-1.44 9.5-3.83l-3.72-3.72c-1.39 1.14-3.15 1.83-5.78 1.83-2.92 0-5.5-1.29-7.27-3.46l-4.22 3.28C3.55 20.68 7.42 22.00 12.00 22.00z" fill="#fff"/>
-                        <path d="M20.25 10.00c.09.68.14 1.37.14 2.00 0 1.94-.48 3.82-1.34 5.48l-4.22-3.28c.47-1.1.74-2.3.74-3.55 0-1.23-.21-2.42-.58-3.55l3.72-3.72c.86 1.48 1.34 3.1 1.34 4.87z" fill="#fff"/>
-                    </svg>
+                    <svg class="google-icon" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12.00 4.75a7.21 7.21 0 0 1 5.38 2.08l3.72-3.72C18.23 2.15 15.22 1 12.00 1 7.42 1 3.55 3.32 1.57 6.64l4.22 3.28C6.91 8.78 9.27 7.75 12.00 7.75z" fill="#fff"/><path d="M1.57 6.64c-.37 1.1-.58 2.29-.58 3.36 0 1.25.26 2.45.74 3.55l-4.22 3.28C3.55 20.68 7.42 22.00 12.00 22.00z" fill="#fff"/><path d="M12.00 22.00c3.7 0 6.94-1.44 9.5-3.83l-3.72-3.72c-1.39 1.14-3.15 1.83-5.78 1.83-2.92 0-5.5-1.29-7.27-3.46l-4.22 3.28C3.55 20.68 7.42 22.00 12.00 22.00z" fill="#fff"/><path d="M20.25 10.00c.09.68.14 1.37.14 2.00 0 1.94-.48 3.82-1.34 5.48l-4.22-3.28c.47-1.1.74-2.3.74-3.55 0-1.23-.21-2.42-.58-3.55l3.72-3.72c.86 1.48 1.34 3.1 1.34 4.87z" fill="#fff"/></svg>
                     Continuar con Google
                 </button>
 
-                <div class="relative flex items-center py-5">
-                    <div class="flex-grow border-t border-gray-300"></div>
-                    <span class="flex-shrink mx-4 text-gray-400">O con tu Email</span>
-                    <div class="flex-grow border-t border-gray-300"></div>
-                </div>
+                <div class="relative flex items-center py-5"><div class="flex-grow border-t border-gray-300"></div><span class="flex-shrink mx-4 text-gray-400">O con tu Email</span><div class="flex-grow border-t border-gray-300"></div></div>
 
                 <!-- Formulario de Email/Password -->
                 <form id="email-auth-form" class="space-y-4">
-                    <div>
-                        <input type="email" name="email" placeholder="Correo Electrónico" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500" autocomplete="email">
-                    </div>
-                    <div>
-                        <input type="password" name="password" placeholder="Contraseña (mín. 6 caracteres)" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500" autocomplete="current-password">
-                    </div>
-                    <button id="email-auth-submit" type="submit" class="w-full px-4 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 transition duration-150">
-                        Iniciar Sesión
-                    </button>
+                    <div><input type="email" name="email" placeholder="Correo Electrónico" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500" autocomplete="email"></div>
+                    <div><input type="password" name="password" placeholder="Contraseña (mín. 6 caracteres)" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500" autocomplete="current-password"></div>
+                    <button id="email-auth-submit" type="submit" class="w-full px-4 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 transition duration-150">Iniciar Sesión</button>
                 </form>
 
                 <div class="mt-6 text-center">
-                    <button id="switch-auth-btn" class="text-sm text-blue-600 hover:text-blue-800 transition duration-150">
-                        ¿No tienes cuenta? Regístrate aquí.
-                    </button>
+                    <button id="switch-auth-btn" class="text-sm text-blue-600 hover:text-blue-800 transition duration-150">¿No tienes cuenta? Regístrate aquí.</button>
                 </div>
             </div>
         </section>
 
 
-        <!-- CONTENIDO PRINCIPAL DE LA APP (Oculto si no está logueado) -->
-        <div id="app-content" class="hidden">
+        <!-- CONTENIDO PRINCIPAL DE LA APP -->
+        <div id="app-content" class="hidden hidden-transition">
             <!-- Cabecera -->
-            <header class="mb-6 flex justify-between items-center">
+            <header class="mb-6 flex justify-between items-center bg-white p-4 rounded-xl shadow-md sticky top-0 z-10 border-b border-gray-200">
                 <div>
-                    <h1 class="text-3xl font-bold text-blue-700">🩺 Registro de Presión Arterial</h1>
-                    <p class="text-sm text-gray-600">Sesión iniciada como: <span id="user-email-display" class="font-semibold"></span></p>
+                    <h1 class="text-xl font-bold text-blue-700">🩺 Registro BP</h1>
+                    <p class="text-xs text-gray-600 truncate">Usuario: <span id="user-email-display" class="font-semibold"></span></p>
                 </div>
                 <button id="sign-out-btn" class="px-3 py-1 bg-red-500 text-white text-sm font-medium rounded-md hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500">
-                    Cerrar Sesión
+                    Salir
                 </button>
             </header>
 
             <!-- Sección de Recordatorio -->
-            <section class="mb-6 bg-white p-6 rounded-lg shadow-md">
-                <h2 class="text-xl font-semibold mb-3 text-gray-800">Recordatorio Periódico (Google Calendar)</h2>
-                <p class="text-sm text-gray-600 mb-3">Configura la hora y la frecuencia, y haz clic para añadir el evento recurrente a tu Google Calendar.</p>
+            <section class="mb-6 bg-white p-6 rounded-xl shadow-md">
+                <h2 class="text-xl font-semibold mb-3 text-gray-800">Recordatorio Periódico</h2>
                 <form id="reminder-form" class="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
-                    <div>
-                        <label for="reminder-time" class="block text-sm font-medium text-gray-700">Hora:</label>
-                        <input type="time" id="reminder-time" name="reminder-time" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                    </div>
-                    <div>
-                        <label for="reminder-frequency" class="block text-sm font-medium text-gray-700">Cada (días):</label>
-                        <input type="number" id="reminder-frequency" name="reminder-frequency" value="1" min="1" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                    </div>
-                    <div class="sm:col-span-1">
-                        <button id="add-to-calendar-btn" type="button" class="w-full px-4 py-2 bg-green-600 text-white font-semibold rounded-md shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2">
-                            Añadir a G. Calendar
-                        </button>
-                    </div>
+                    <div><label for="reminder-time" class="block text-sm font-medium text-gray-700">Hora:</label><input type="time" id="reminder-time" name="reminder-time" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"></div>
+                    <div><label for="reminder-frequency" class="block text-sm font-medium text-gray-700">Cada (días):</label><input type="number" id="reminder-frequency" name="reminder-frequency" value="1" min="1" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"></div>
+                    <div class="sm:col-span-1"><button id="add-to-calendar-btn" type="button" class="w-full px-4 py-2 bg-green-600 text-white font-semibold rounded-md shadow-sm hover:bg-green-700 focus:ring-2 focus:ring-green-500">Añadir a G. Calendar</button></div>
                 </form>
             </section>
 
             <!-- Sección de Formulario de Registro -->
-            <section class="mb-6 bg-white p-6 rounded-lg shadow-md">
+            <section class="mb-6 bg-white p-6 rounded-xl shadow-md">
                 <h2 class="text-xl font-semibold mb-4 text-gray-800">Registrar Nueva Medición</h2>
                 <form id="bp-form" class="space-y-4">
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                            <label for="systolic" class="block text-sm font-medium text-gray-700">Sistólica (SYS)</label>
-                            <input type="number" id="systolic" name="systolic" placeholder="Ej: 120" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                        </div>
-                        <div>
-                            <label for="diastolic" class="block text-sm font-medium text-gray-700">Diastólica (DIA)</label>
-                            <input type="number" id="diastolic" name="diastolic" placeholder="Ej: 80" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                        </div>
-                        <div>
-                            <label for="pulse" class="block text-sm font-medium text-gray-700">Pulso (PPM)</label>
-                            <input type="number" id="pulse" name="pulse" placeholder="Ej: 70" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                        </div>
+                    <div class="grid grid-cols-3 gap-4">
+                        <div><label for="systolic" class="block text-sm font-medium text-gray-700">Sistólica (SYS)</label><input type="number" id="systolic" name="systolic" placeholder="Ej: 120" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"></div>
+                        <div><label for="diastolic" class="block text-sm font-medium text-gray-700">Diastólica (DIA)</label><input type="number" id="diastolic" name="diastolic" placeholder="Ej: 80" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"></div>
+                        <div><label for="pulse" class="block text-sm font-medium text-gray-700">Pulso (PPM)</label><input type="number" id="pulse" name="pulse" placeholder="Ej: 70" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"></div>
                     </div>
-                    <div>
-                        <label for="reading-time" class="block text-sm font-medium text-gray-700">Fecha y Hora</label>
-                        <input type="datetime-local" id="reading-time" name="reading-time" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                    </div>
-                    <div>
-                        <label for="notes" class="block text-sm font-medium text-gray-700">Notas (opcional)</label>
-                        <textarea id="notes" name="notes" rows="2" placeholder="Ej: Después de caminar, me sentía relajado..." class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"></textarea>
-                    </div>
-                    <div>
-                        <button type="submit" class="w-full px-4 py-2 bg-green-600 text-white font-semibold rounded-md shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2">
-                            Guardar Medición
-                        </button>
-                    </div>
+                    <div><label for="reading-time" class="block text-sm font-medium text-gray-700">Fecha y Hora</label><input type="datetime-local" id="reading-time" name="reading-time" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"></div>
+                    <div><label for="notes" class="block text-sm font-medium text-gray-700">Notas (opcional)</label><textarea id="notes" name="notes" rows="2" placeholder="Ej: Después de caminar..." class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"></textarea></div>
+                    <div><button type="submit" class="w-full px-4 py-2 bg-green-600 text-white font-semibold rounded-md shadow-sm hover:bg-green-700 focus:ring-2 focus:ring-green-500">Guardar Medición</button></div>
                 </form>
             </section>
 
             <!-- Sección de Gráfico -->
-            <section class="mb-6 bg-white p-6 rounded-lg shadow-md">
+            <section class="mb-6 bg-white p-6 rounded-xl shadow-md">
                 <h2 class="text-xl font-semibold mb-4 text-gray-800">Gráfico de Seguimiento</h2>
-                <div class="relative h-64 md:h-80">
-                    <canvas id="bpChart"></canvas>
-                </div>
+                <div class="relative h-80"><canvas id="bpChart"></canvas></div>
             </section>
 
             <!-- Sección de Historial -->
-            <section class="bg-white p-6 rounded-lg shadow-md">
+            <section class="bg-white p-6 rounded-xl shadow-md">
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="text-xl font-semibold text-gray-800">Historial de Mediciones</h2>
-                    <button id="export-pdf-btn" class="px-3 py-1 bg-gray-200 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline-block -mt-0.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                        </svg>
-                        Exportar a PDF
+                    <button id="export-pdf-btn" class="px-3 py-1 bg-gray-200 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-300 focus:ring-2 focus:ring-gray-400">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline-block -mt-0.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>Exportar a PDF
                     </button>
                 </div>
-                <div id="loading" class="text-center text-gray-500">
-                    <p>Cargando mediciones...</p>
-                </div>
-                <div id="history-container" class="space-y-4">
-                    <!-- Las mediciones se insertarán aquí dinámicamente -->
-                </div>
+                <div id="loading" class="text-center text-gray-500 p-4"><p>Cargando mediciones...</p></div>
+                <div id="history-container" class="space-y-4"></div>
             </section>
         </div>
     </div>
