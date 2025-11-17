@@ -144,10 +144,14 @@
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, onSnapshot, collection, query, addDoc, serverTimestamp, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         
-        // Configuración de Firebase - Variables Globales (MANDATORIAS)
-        // **IMPORTANTE**: Cuando subas esto a GitHub Pages, debes reemplazar 'default-app-id' y el objeto vacío en 'firebaseConfig' 
-        // con tus propios valores de configuración y ID de la aplicación, ya que las variables __app_id y __firebase_config 
-        // solo existen en el entorno Canvas.
+        
+        // =====================================================================
+        // --- Configuración de Firebase: ¡EDITAR OBLIGATORIO! ---
+        // =====================================================================
+        // 1. Verifica que 'appId' coincida con tu estructura de Firebase.
+        const appId = 'blood-pressure-tracker'; 
+        
+        // 2. REEMPLAZA el objeto 'firebaseConfig' con la configuración de TU proyecto.
         // Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
 // TODO: Add SDKs for Firebase products that you want to use
@@ -164,7 +168,28 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-const app = initializeApp(firebaseConfig);
+const app = initializeApp(firebaseConfig);            // Pega tu configuración aquí (ej: apiKey, authDomain, projectId, etc.)
+            // Si la aplicación funciona aquí, significa que esta variable está siendo
+            // llenada por el entorno de Canvas. Para GitHub Pages, ¡debes pegarla manualmente!
+            // Ejemplo de estructura (no usar, es ficticia):
+            /*
+            apiKey: "TU_API_KEY",
+            authDomain: "TU_DOMINIO.firebaseapp.com",
+            projectId: "TU_ID_DE_PROYECTO",
+            // ... resto de la configuración ...
+            */
+            // Usamos un placeholder para que funcione en el Canvas, pero DEBE CAMBIARSE:
+            // eslint-disable-next-line no-undef
+            ...(typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {})
+        };
+        
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null; 
+        
+        // =====================================================================
+        // --- FIN DE LA CONFIGURACIÓN (No tocar el resto del script) ---
+        // =====================================================================
+        
+
         // Variables de la Aplicación
         let db;
         let auth;
@@ -194,25 +219,26 @@ const app = initializeApp(firebaseConfig);
             try {
                 // setLogLevel('error'); // Mantener en "error" para producción
                 
-                // Si firebaseConfig está vacío (fuera del canvas), inicializar sin él.
-                const app = firebaseConfig && Object.keys(firebaseConfig).length > 0 ? initializeApp(firebaseConfig) : null;
-
-                if (!app) {
-                    console.error("Configuración de Firebase no disponible. La aplicación no podrá guardar datos en un entorno externo.");
-                    readingsBody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-red-500">Error: Configuración de Firebase no válida.</td></tr>';
+                // Comprueba si firebaseConfig es un objeto válido con al menos projectId
+                const isConfigValid = firebaseConfig && Object.keys(firebaseConfig).length > 0 && firebaseConfig.projectId;
+                
+                if (!isConfigValid) {
+                    console.error("Configuración de Firebase no disponible o incompleta. Por favor, edita el script para insertar tus credenciales.");
+                    readingsBody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-red-500 font-bold">ERROR: Configura tus credenciales de Firebase en el código.</td></tr>';
                     return;
                 }
 
+                const app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
                 
                 await setPersistence(auth, browserLocalPersistence);
 
                 if (initialAuthToken) {
-                    // Usado en entorno Canvas
+                    // Si estamos en el entorno Canvas, usamos el token de inicio
                     await signInWithCustomToken(auth, initialAuthToken);
                 } else {
-                    // Usado en entorno externo para acceso general (anónimo)
+                    // En GitHub Pages, usamos inicio de sesión anónimo
                     await signInAnonymously(auth);
                 }
                 
@@ -231,7 +257,7 @@ const app = initializeApp(firebaseConfig);
 
             } catch (error) {
                 console.error("Error al inicializar Firebase o autenticar:", error);
-                readingsBody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-red-500">Error al conectar con la base de datos.</td></tr>';
+                readingsBody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-red-500">Error al conectar con la base de datos. Verifica tu conexión o las credenciales de Firebase.</td></tr>';
             }
         }
 
@@ -244,7 +270,7 @@ const app = initializeApp(firebaseConfig);
                 return;
             }
 
-            // Ruta privada para el usuario actual: /artifacts/{appId}/users/{userId}/blood_pressure_readings
+            // Ruta privada: /artifacts/{appId}/users/{userId}/blood_pressure_readings
             const readingsCollectionRef = collection(db, 'artifacts', appId, 'users', userId, 'blood_pressure_readings');
             
             try {
@@ -259,8 +285,9 @@ const app = initializeApp(firebaseConfig);
                 saveStatus.className = 'text-sm pt-2 text-center text-green-600 font-medium block';
                 readingForm.reset();
             } catch (error) {
+                // Este error suele indicar REGLAS DE SEGURIDAD incorrectas
                 console.error("Error al guardar la lectura:", error);
-                saveStatus.textContent = 'Error al guardar. Intenta de nuevo.';
+                saveStatus.textContent = 'Error al guardar. ¿Reglas de Seguridad de Firestore publicadas?';
                 saveStatus.className = 'text-sm pt-2 text-center text-red-600 font-medium block';
             }
             setTimeout(() => { saveStatus.classList.add('hidden'); }, 3000);
@@ -290,7 +317,7 @@ const app = initializeApp(firebaseConfig);
                 renderChart(data);
             }, (error) => {
                 console.error("Error al escuchar los datos:", error);
-                readingsBody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-red-500">Error al cargar el historial.</td></tr>';
+                readingsBody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-red-500">Error al cargar el historial. ¡Revisa las Reglas de Seguridad!</td></tr>';
             });
         }
 
