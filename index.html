@@ -138,20 +138,22 @@
 
     <!-- Firebase SDKs -->
     <script type="module">
+        // Este error (Identifier already declared) suele ocurrir si hay otro 
+        // <script> de Firebase en tu página. ¡Asegúrate de que este sea el único!
+        
         // --- Setup de Firebase y Autenticación ---
 
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, onSnapshot, collection, query, addDoc, serverTimestamp, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, onSnapshot, collection, query, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         
         
         // =====================================================================
         // --- Configuración de Firebase: ¡EDITAR OBLIGATORIO! ---
         // =====================================================================
-        // 1. Verifica que 'appId' coincida con tu estructura de Firebase.
-        const appId = 'blood-pressure-tracker'; 
-        
-        // 2. REEMPLAZA el objeto 'firebaseConfig' con la configuración de TU proyecto.
+        // ASEGÚRATE DE QUE TU OBJETO DE CONFIGURACIÓN ESTÉ AQUÍ.
+        // Si la aplicación funciona en el Canvas, el objeto __firebase_config 
+        // tiene contenido. Para usarlo fuera, DEBES pegarlo manualmente aquí.
         // Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
 // TODO: Add SDKs for Firebase products that you want to use
@@ -168,21 +170,10 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-const app = initializeApp(firebaseConfig);            // Pega tu configuración aquí (ej: apiKey, authDomain, projectId, etc.)
-            // Si la aplicación funciona aquí, significa que esta variable está siendo
-            // llenada por el entorno de Canvas. Para GitHub Pages, ¡debes pegarla manualmente!
-            // Ejemplo de estructura (no usar, es ficticia):
-            /*
-            apiKey: "TU_API_KEY",
-            authDomain: "TU_DOMINIO.firebaseapp.com",
-            projectId: "TU_ID_DE_PROYECTO",
-            // ... resto de la configuración ...
-            */
-            // Usamos un placeholder para que funcione en el Canvas, pero DEBE CAMBIARSE:
-            // eslint-disable-next-line no-undef
-            ...(typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {})
-        };
-        
+const app = initializeApp(firebaseConfig);        
+        // Carga la configuración del entorno Canvas o usa un objeto vacío para forzar la edición
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {}; 
+
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null; 
         
         // =====================================================================
@@ -217,14 +208,13 @@ const app = initializeApp(firebaseConfig);            // Pega tu configuración 
          */
         async function initializeAppAndAuth() {
             try {
-                // setLogLevel('error'); // Mantener en "error" para producción
                 
-                // Comprueba si firebaseConfig es un objeto válido con al menos projectId
-                const isConfigValid = firebaseConfig && Object.keys(firebaseConfig).length > 0 && firebaseConfig.projectId;
+                // VERIFICACIÓN CLAVE: Asegura que la configuración tiene el projectId
+                const isConfigValid = firebaseConfig && firebaseConfig.projectId && firebaseConfig.apiKey;
                 
                 if (!isConfigValid) {
-                    console.error("Configuración de Firebase no disponible o incompleta. Por favor, edita el script para insertar tus credenciales.");
-                    readingsBody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-red-500 font-bold">ERROR: Configura tus credenciales de Firebase en el código.</td></tr>';
+                    console.error("Firebase no inicializado: La configuración es incompleta o no se ha insertado.");
+                    readingsBody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-red-500 font-bold">ERROR: CONFIGURACIÓN DE FIREBASE NO ENCONTRADA.</td></tr>';
                     return;
                 }
 
@@ -235,10 +225,8 @@ const app = initializeApp(firebaseConfig);            // Pega tu configuración 
                 await setPersistence(auth, browserLocalPersistence);
 
                 if (initialAuthToken) {
-                    // Si estamos en el entorno Canvas, usamos el token de inicio
                     await signInWithCustomToken(auth, initialAuthToken);
                 } else {
-                    // En GitHub Pages, usamos inicio de sesión anónimo
                     await signInAnonymously(auth);
                 }
                 
@@ -256,8 +244,9 @@ const app = initializeApp(firebaseConfig);            // Pega tu configuración 
                 });
 
             } catch (error) {
-                console.error("Error al inicializar Firebase o autenticar:", error);
-                readingsBody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-red-500">Error al conectar con la base de datos. Verifica tu conexión o las credenciales de Firebase.</td></tr>';
+                // Aquí capturamos cualquier otro error de inicialización/conexión
+                console.error("Error FATAL al iniciar Firebase:", error.message);
+                readingsBody.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-red-500 font-bold">Error de Conexión. Revise Consola (F12): ${error.message}</td></tr>`;
             }
         }
 
@@ -285,9 +274,8 @@ const app = initializeApp(firebaseConfig);            // Pega tu configuración 
                 saveStatus.className = 'text-sm pt-2 text-center text-green-600 font-medium block';
                 readingForm.reset();
             } catch (error) {
-                // Este error suele indicar REGLAS DE SEGURIDAD incorrectas
                 console.error("Error al guardar la lectura:", error);
-                saveStatus.textContent = 'Error al guardar. ¿Reglas de Seguridad de Firestore publicadas?';
+                saveStatus.textContent = 'Error al guardar. ¿Reglas de Seguridad publicadas?';
                 saveStatus.className = 'text-sm pt-2 text-center text-red-600 font-medium block';
             }
             setTimeout(() => { saveStatus.classList.add('hidden'); }, 3000);
@@ -305,7 +293,6 @@ const app = initializeApp(firebaseConfig);            // Pega tu configuración 
             onSnapshot(readingsQuery, (snapshot) => {
                 const data = [];
                 snapshot.forEach(doc => {
-                    // Si el timestamp es nulo (por ser un objeto ServerTimestamp pendiente), usa la fecha actual temporalmente
                     const timestamp = doc.data().timestamp ? doc.data().timestamp.toDate() : new Date();
                     data.push({ id: doc.id, ...doc.data(), date: timestamp });
                 });
