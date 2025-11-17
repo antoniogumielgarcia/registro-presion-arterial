@@ -22,8 +22,15 @@
         // ======================================================================================
         //  !!! CRÍTICO: REEMPLAZA ESTA CONFIGURACIÓN CON TUS CLAVES REALES DE FIREBASE !!!
         // ======================================================================================
-    
-            const firebaseConfig = {
+        // Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
   apiKey: "AIzaSyDeQkS7ySEBaJYUlznNY7GODm4hSiJOYJo",
   authDomain: "registro-presion-arterial.firebaseapp.com",
   projectId: "registro-presion-arterial",
@@ -32,7 +39,10 @@
   appId: "1:365700147450:web:4100d578b052d48e808143",
   measurementId: "G-HJ6W83BE3F"
 };
-        const CANVAS_APP_ID = "bp-tracker-pro"; 
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app); 
         // ======================================================================================
         
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
