@@ -3,16 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Monitor de Tensión Arterial</title>
-    <!-- REFERENCIA ACTUALIZADA: La aplicación ahora busca el icono en la carpeta 'images/' -->
-    <link rel="icon" type="image/png" href="images/favicon.png">
-    <!-- Carga de Tailwind CSS para un diseño responsivo -->
+    <title>Monitor de Tensión Arterial (Local)</title>
+    <!-- Carga de Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Carga de Chart.js para gráficos -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-    <!-- Carga de jsPDF para exportar a PDF (incluye autoTable para tablas) -->
+    <!-- Carga de jsPDF para exportar a PDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://unpkg.com/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.js"></script>
+    
     <style>
         /* Configuración personalizada de Tailwind */
         :root {
@@ -24,33 +23,33 @@
         .chart-container {
             height: 300px;
         }
-        /* Estilos para el scroll en la tabla */
         .scrollable-table {
             max-height: 250px;
             overflow-y: auto;
         }
-        /* Color para la cabecera de la tabla de registros */
-        .registro-header {
-            background-color: #f0f4ff; /* Indigo 50 */
+        .active-tab {
+            border-color: #4f46e5; /* indigo-600 */
+            color: #4f46e5; /* indigo-600 */
         }
     </style>
 </head>
 <body class="bg-gray-50 p-4 min-h-screen">
 
     <div class="container mx-auto">
-        <h1 class="text-3xl font-bold text-center text-indigo-700 mt-2 mb-6">Monitor de Tensión Arterial</h1>
+        <h1 class="text-3xl font-bold text-center text-indigo-700 mt-2 mb-2">Monitor de Tensión Arterial (Local)</h1>
+        <p class="text-center text-sm text-gray-600 mb-6">Datos guardados solo en tu dispositivo. Se genera un JSON de respaldo automático al guardar.</p>
 
         <!-- Pestañas de Navegación -->
         <div class="flex border-b border-indigo-200 mb-6">
-            <button onclick="showSection('registro')" class="tab-button tab-registro flex-1 py-3 text-center text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-indigo-600 hover:border-indigo-400 transition duration-150 active-tab">
+            <button onclick="window.showSection('registro')" class="tab-button tab-registro flex-1 py-3 text-center text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-indigo-600 hover:border-indigo-400 transition duration-150 active-tab">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
                 Registrar (3 Tomas)
             </button>
-            <button onclick="showSection('grafico')" class="tab-button tab-grafico flex-1 py-3 text-center text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-indigo-600 hover:border-indigo-400 transition duration-150">
+            <button onclick="window.showSection('grafico')" class="tab-button tab-grafico flex-1 py-3 text-center text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-indigo-600 hover:border-indigo-400 transition duration-150">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>
                 Gráfico
             </button>
-            <button onclick="showSection('historial')" class="tab-button tab-historial flex-1 py-3 text-center text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-indigo-600 hover:border-indigo-400 transition duration-150">
+            <button onclick="window.showSection('historial')" class="tab-button tab-historial flex-1 py-3 text-center text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-indigo-600 hover:border-indigo-400 transition duration-150">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2m-4 5h4m-4 4h4m-6-4h.01M9 16h.01" /></svg>
                 Historial
             </button>
@@ -108,7 +107,7 @@
                     </div>
 
                     <button type="submit" id="saveRecordBtn" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-lg text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-150 disabled:opacity-50" disabled>
-                        Guardar Media como Registro Oficial
+                        Guardar Media y Exportar Backup JSON
                     </button>
                 </form>
                 <div id="messageBox" class="mt-4 p-3 rounded-lg text-center hidden"></div>
@@ -120,7 +119,6 @@
             <div class="bg-white p-6 rounded-xl shadow-lg border border-indigo-100">
                 <h2 class="text-xl font-semibold mb-4 text-indigo-700">Evolución (Últimos 30 Registros)</h2>
                 <div class="chart-container">
-                    <!-- Canvas donde se dibuja el gráfico -->
                     <canvas id="pressureChart"></canvas>
                 </div>
                 <div id="noDataChart" class="hidden text-center text-gray-500 py-10">
@@ -132,9 +130,28 @@
         <!-- SECCIÓN 3: HISTORIAL Y EXPORTACIÓN -->
         <div id="historial" class="section hidden">
             <div class="bg-white p-6 rounded-xl shadow-lg border border-indigo-100">
-                <h2 class="text-xl font-semibold mb-4 text-indigo-700">Historial de Registros</h2>
+                <h2 class="text-xl font-semibold mb-4 text-indigo-700">Historial de Registros (Local)</h2>
 
-                <!-- Selección de Rango de Fechas para Exportación -->
+                <!-- Control de Importación y Exportación JSON Manual -->
+                <div class="mb-6 p-4 border border-green-200 rounded-lg bg-green-50/50">
+                    <p class="text-sm font-bold text-green-700 mb-2">Copia de Seguridad (JSON)</p>
+                    <p class="text-xs text-green-600 mb-3">El backup automático se descarga cada vez que guardas un registro nuevo con el nombre: <code>backup_tension_arterial_[FECHA]_[HORA].json</code>. Búscalo en tu carpeta de **Descargas**.</p>
+                    <div class="flex flex-col sm:flex-row gap-3">
+                        <!-- Exportar JSON Manual -->
+                        <button id="exportJsonButton" onclick="window.exportToJson()" class="flex-1 flex items-center justify-center py-2 px-3 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 transition duration-150 disabled:opacity-50" disabled>
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                            Exportar JSON (Manual)
+                        </button>
+                        <!-- Importar JSON -->
+                        <label for="importJsonInput" class="flex-1 flex items-center justify-center py-2 px-3 border border-green-600 rounded-lg shadow-sm text-sm font-medium text-green-600 hover:bg-green-100 transition duration-150 cursor-pointer">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                            Importar JSON
+                            <input type="file" id="importJsonInput" accept=".json" class="hidden" onchange="window.handleJsonImport(event)">
+                        </label>
+                    </div>
+                </div>
+                
+                <!-- Selección de Rango de Fechas para Exportación PDF -->
                 <div class="flex flex-col sm:flex-row gap-4 mb-6 p-4 border border-indigo-200 rounded-lg bg-indigo-50/50">
                     <div class="flex-1">
                         <label for="startDate" class="block text-xs font-medium text-gray-700 mb-1">Exportar desde (opcional):</label>
@@ -165,21 +182,21 @@
                 </div>
 
                 <div id="noDataHistory" class="text-center text-gray-500 py-4 hidden">
-                    Aún no tienes registros guardados.
+                    Aún no tienes registros guardados localmente.
                 </div>
 
-                <button id="exportPdfButton" onclick="exportToPdf()" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-lg text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition duration-150 mt-4 disabled:opacity-50" disabled>
+                <button id="exportPdfButton" onclick="window.exportToPdf()" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-lg text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition duration-150 mt-4 disabled:opacity-50" disabled>
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                     Exportar Registros Filtrados a PDF
                 </button>
             </div>
         </div>
 
-        <!-- Modal personalizado (Sustituye a alert/confirm) -->
+        <!-- Modal personalizado -->
         <div id="customModal" class="fixed inset-0 bg-gray-600 bg-opacity-75 hidden flex items-center justify-center p-4 z-50">
             <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm">
                 <h3 id="modalTitle" class="text-lg font-semibold text-indigo-700 mb-4">Confirmación</h3>
-                <p id="modalMessage" class="text-sm text-gray-600 mb-6">¿Estás seguro de que quieres eliminar este registro?</p>
+                <p id="modalMessage" class="text-sm text-gray-600 mb-6">¿Estás seguro de que quieres realizar esta acción?</p>
                 <div id="modalButtons" class="flex justify-end space-x-3">
                     <!-- Los botones se insertan dinámicamente -->
                 </div>
@@ -190,45 +207,105 @@
 
     <script>
         // --- VARIABLES GLOBALES ---
+        const LOCAL_STORAGE_KEY = 'bloodPressureRecords';
         let pressureData = [];
         let pressureChart = null;
 
-        // --- FUNCIONES DE ALMACENAMIENTO (localStorage) ---
+        // Definición de las funciones en window para que sean accesibles globalmente
+        window.showSection = showSection;
+        window.deleteRecord = deleteRecord;
+        window.exportToPdf = exportToPdf;
+        window.exportToJson = exportToJson;
+        window.handleJsonImport = handleJsonImport;
+
+        // --- GESTIÓN DE DATOS LOCALES (localStorage) ---
 
         /**
-         * Carga los datos de tensión arterial desde localStorage.
-         * Los ordena de más reciente a más antiguo por fecha.
+         * Genera un identificador único global (UUID) para cada registro.
          */
-        function loadData() {
-            try {
-                const storedData = localStorage.getItem('bloodPressureRecords');
-                pressureData = storedData ? JSON.parse(storedData) : [];
-                // Asegurar que los datos estén ordenados de más reciente a más antiguo (para la tabla)
-                pressureData.sort((a, b) => new Date(b.date) - new Date(a.date));
-            } catch (e) {
-                console.error("Error cargando o parseando datos de localStorage:", e);
+        function generateUUID() {
+            return crypto.randomUUID();
+        }
+
+        /**
+         * Carga los datos desde localStorage y los parsea.
+         */
+        function loadDataFromLocal() {
+            const storedData = localStorage.getItem(LOCAL_STORAGE_KEY);
+            if (storedData) {
+                try {
+                    pressureData = JSON.parse(storedData);
+                    // Asegurar que el array esté ordenado del más reciente al más antiguo
+                    pressureData.sort((a, b) => new Date(b.date) - new Date(a.date));
+                } catch (e) {
+                    console.error("Error al parsear datos de localStorage:", e);
+                    pressureData = [];
+                }
+            } else {
                 pressureData = [];
             }
+            
+            // Actualizar UI al cargar
+            updateUIBasedOnData();
         }
 
         /**
-         * Guarda los datos de tensión arterial en localStorage.
+         * Guarda el array global 'pressureData' en localStorage.
          */
-        function saveData() {
-            try {
-                localStorage.setItem('bloodPressureRecords', JSON.stringify(pressureData));
-            } catch (e) {
-                showMessage("Error guardando datos localmente.", 'error');
-                console.error("Error guardando datos en localStorage:", e);
+        function saveDataToLocal() {
+            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(pressureData));
+            updateUIBasedOnData();
+        }
+
+        /**
+         * Añade un nuevo registro a 'pressureData', guarda en local y dispara la exportación.
+         * @param {object} record - El objeto de registro a guardar.
+         */
+        function addRecordToLocal(record) {
+            // Añadir ID único local
+            const newRecord = { ...record, id: generateUUID() };
+            pressureData.unshift(newRecord); // Añadir al principio (más reciente)
+            
+            saveDataToLocal();
+            
+            showMessage(`Registro de Media (${record.systolic}/${record.diastolic}) guardado localmente con éxito.`, 'success');
+            
+            // *** EXPORTACIÓN AUTOMÁTICA ***
+            exportToJson(true); 
+        }
+
+        /**
+         * Elimina un registro de 'pressureData' por su ID y guarda.
+         * @param {string} id - El ID del registro a eliminar.
+         */
+        function deleteRecordFromLocal(id) {
+            const initialLength = pressureData.length;
+            pressureData = pressureData.filter(record => record.id !== id);
+            
+            if (pressureData.length < initialLength) {
+                saveDataToLocal();
+                showMessage("Registro de media eliminado localmente.", 'success');
+            } else {
+                showMessage("Error: Registro no encontrado para eliminar.", 'error');
             }
         }
+
+        /**
+         * Actualiza el gráfico y la tabla del historial.
+         */
+        function updateUIBasedOnData() {
+            renderHistoryTable();
+            renderChart();
+
+            // Habilitar/Deshabilitar botones de exportar si hay datos
+            const hasData = pressureData.length > 0;
+            document.getElementById('exportPdfButton').disabled = !hasData;
+            document.getElementById('exportJsonButton').disabled = !hasData;
+        }
+
 
         // --- MANEJO DE UI Y ESTADO ---
 
-        /**
-         * Muestra u oculta una sección y actualiza el estado de la pestaña.
-         * @param {string} sectionId - El ID de la sección a mostrar ('registro', 'grafico', 'historial').
-         */
         function showSection(sectionId) {
             const sections = document.querySelectorAll('.section');
             sections.forEach(sec => sec.classList.add('hidden'));
@@ -239,9 +316,16 @@
                 tab.classList.add('border-transparent', 'text-gray-500');
             });
 
-            document.getElementById(sectionId).classList.remove('hidden');
-            document.querySelector(`.tab-${sectionId}`).classList.add('active-tab', 'border-indigo-600', 'text-indigo-600');
-            document.querySelector(`.tab-${sectionId}`).classList.remove('border-transparent', 'text-gray-500');
+            const targetSection = document.getElementById(sectionId);
+            if (targetSection) {
+                targetSection.classList.remove('hidden');
+            }
+            
+            const targetTab = document.querySelector(`.tab-${sectionId}`);
+            if (targetTab) {
+                 targetTab.classList.add('active-tab', 'border-indigo-600', 'text-indigo-600');
+                 targetTab.classList.remove('border-transparent', 'text-gray-500');
+            }
 
             // Recargar contenido específico al cambiar de sección
             if (sectionId === 'grafico') {
@@ -251,11 +335,6 @@
             }
         }
 
-        /**
-         * Muestra un mensaje temporal de éxito o error.
-         * @param {string} message - El mensaje a mostrar.
-         * @param {string} type - 'success' o 'error'.
-         */
         function showMessage(message, type) {
             const msgBox = document.getElementById('messageBox');
             msgBox.textContent = message;
@@ -269,14 +348,9 @@
 
             setTimeout(() => {
                 msgBox.classList.add('hidden');
-            }, 3000);
+            }, 5000); // 5 segundos para que el usuario pueda leer
         }
 
-        /**
-         * Genera un timestamp con formato legible.
-         * @param {string} dateString - String de fecha/hora ISO (yyyy-mm-ddThh:mm).
-         * @returns {string} - Fecha y hora con formato 'dd/mm/yyyy hh:mm'.
-         */
         function formatDateTime(dateString) {
             const date = new Date(dateString);
             if (isNaN(date)) return 'Fecha Inválida';
@@ -288,7 +362,6 @@
 
         // --- MANEJO DE FORMULARIO Y DATOS ---
 
-        // Asigna la fecha y hora actual al campo de entrada al cargar
         function setInitialDateTime() {
             const now = new Date();
             const year = now.getFullYear();
@@ -299,20 +372,11 @@
             document.getElementById('dateTime').value = `${year}-${month}-${day}T${hours}:${minutes}`;
         }
 
-        /**
-         * Función auxiliar para calcular el promedio de 3 valores.
-         * Redondea al entero más cercano.
-         * @param {number[]} values - Array de 3 números.
-         * @returns {number} - El promedio redondeado.
-         */
         function calculateAverage(values) {
             const sum = values.reduce((acc, val) => acc + val, 0);
             return Math.round(sum / values.length);
         }
 
-        /**
-         * Calcula y muestra los promedios de las 3 tomas.
-         */
         function calculateAndDisplayAverages() {
             const inputs = document.querySelectorAll('#registroForm input[type="number"]');
             const readings = { systolic: [], diastolic: [], pulse: [] };
@@ -336,7 +400,6 @@
             const avgPulseDisplay = document.getElementById('avgPulseDisplay');
             const saveButton = document.getElementById('saveRecordBtn');
 
-            // 9 inputs, 3 valores por tipo.
             if (allValid && readings.systolic.length === 3 && readings.diastolic.length === 3 && readings.pulse.length === 3) {
                 const avgSystolic = calculateAverage(readings.systolic);
                 const avgDiastolic = calculateAverage(readings.diastolic);
@@ -355,121 +418,94 @@
             }
         }
 
-        // Agrega listeners a todos los campos de número para recálculo instantáneo
         document.querySelectorAll('#registroForm input[type="number"]').forEach(input => {
             input.addEventListener('input', calculateAndDisplayAverages);
         });
 
 
-        /**
-         * Maneja el envío del formulario para añadir un nuevo registro (la media).
-         */
         document.getElementById('registroForm').addEventListener('submit', function(e) {
             e.preventDefault();
 
             const avgSystolic = parseInt(document.getElementById('avgSystolicDisplay').textContent);
             const avgDiastolic = parseInt(document.getElementById('avgDiastolicDisplay').textContent);
             const avgPulse = parseInt(document.getElementById('avgPulseDisplay').textContent);
-            const date = document.getElementById('dateTime').value; // Formato ISO para guardar
+            const date = document.getElementById('dateTime').value; 
 
-            // Validación final basada en el resultado de la media
-            if (isNaN(avgSystolic) || isNaN(avgDiastolic) || isNaN(avgPulse) || avgSystolic <= 0) {
-                showMessage("Por favor, rellena las 3 tomas con valores válidos.", 'error');
+            if (isNaN(avgSystolic) || isNaN(avgDiastolic) || isNaN(avgPulse) || avgSystolic <= 0 || !date) {
+                showMessage("Por favor, rellena las 3 tomas y la fecha con valores válidos.", 'error');
                 return;
             }
 
             const newRecord = {
-                id: Date.now(), // ID único basado en timestamp
-                date: date,
+                date: date, 
                 systolic: avgSystolic,
                 diastolic: avgDiastolic,
                 pulse: avgPulse
             };
 
-            pressureData.push(newRecord);
-            pressureData.sort((a, b) => new Date(b.date) - new Date(a.date)); // Reordenar
-
-            saveData();
-            showMessage(`Registro de Media (${avgSystolic}/${avgDiastolic}/${avgPulse}) guardado con éxito.`, 'success');
+            addRecordToLocal(newRecord);
 
             // Limpiar formulario, restablecer fecha/hora y promedios
             document.getElementById('registroForm').reset();
             setInitialDateTime();
-            calculateAndDisplayAverages(); // Restablece los displays
+            calculateAndDisplayAverages();
         });
 
 
-        /**
-         * Elimina un registro por su ID.
-         * @param {number} id - El ID del registro a eliminar.
-         */
         function deleteRecord(id) {
             showCustomModal(
                 'Confirmar Eliminación',
-                '¿Estás seguro de que deseas eliminar este registro de tensión arterial (la media)? Esta acción no se puede deshacer.',
+                '¿Estás seguro de que deseas eliminar este registro? Se eliminará permanentemente de tu historial local.',
                 [
                     { text: 'Cancelar', class: 'bg-gray-200 text-gray-700 hover:bg-gray-300', action: hideCustomModal },
                     { text: 'Eliminar', class: 'bg-red-600 text-white hover:bg-red-700', action: () => {
-                        pressureData = pressureData.filter(record => record.id !== id);
-                        saveData();
-                        renderHistoryTable();
-                        renderChart();
+                        deleteRecordFromLocal(id);
                         hideCustomModal();
-                        showMessage("Registro de media eliminado.", 'success');
+                        updateUIBasedOnData();
                     }}
                 ]
             );
         }
 
-        /**
-         * Renderiza la tabla de historial en la sección 'historial'.
-         */
         function renderHistoryTable() {
             const tbody = document.getElementById('dataTableBody');
             const noDataMessage = document.getElementById('noDataHistory');
-            const exportButton = document.getElementById('exportPdfButton');
-
-            tbody.innerHTML = ''; // Limpiar tabla
+            
+            tbody.innerHTML = ''; 
 
             if (pressureData.length === 0) {
                 noDataMessage.classList.remove('hidden');
-                exportButton.disabled = true;
                 return;
             }
 
             noDataMessage.classList.add('hidden');
-            exportButton.disabled = false;
 
             pressureData.forEach(record => {
                 const row = tbody.insertRow();
                 row.className = 'hover:bg-indigo-50 transition duration-100';
 
-                // Fecha
                 const dateCell = row.insertCell();
                 dateCell.textContent = formatDateTime(record.date);
                 dateCell.className = 'px-3 py-2 whitespace-nowrap text-gray-900';
 
-                // Sistólica
                 const systolicCell = row.insertCell();
                 systolicCell.textContent = record.systolic;
                 systolicCell.className = 'px-3 py-2 whitespace-nowrap font-medium';
 
-                // Diastólica
                 const diastolicCell = row.insertCell();
                 diastolicCell.textContent = record.diastolic;
                 diastolicCell.className = 'px-3 py-2 whitespace-nowrap';
 
-                // Pulso
                 const pulseCell = row.insertCell();
                 pulseCell.textContent = record.pulse;
                 pulseCell.className = 'px-3 py-2 whitespace-nowrap';
 
-                // Acción (Botón de eliminar)
                 const actionCell = row.insertCell();
                 const deleteButton = document.createElement('button');
                 deleteButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-red-500 hover:text-red-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>`;
                 deleteButton.title = 'Eliminar registro';
-                deleteButton.onclick = () => deleteRecord(record.id);
+                // El ID es el document ID generado localmente
+                deleteButton.onclick = () => deleteRecord(record.id); 
                 deleteButton.className = 'p-1 rounded-full hover:bg-red-100 transition duration-150';
                 actionCell.appendChild(deleteButton);
                 actionCell.className = 'px-3 py-2 text-center';
@@ -478,9 +514,6 @@
 
         // --- MANEJO DE GRÁFICOS (Chart.js) ---
 
-        /**
-         * Renderiza el gráfico de evolución de la tensión y pulso.
-         */
         function renderChart() {
             const chartCanvas = document.getElementById('pressureChart');
             const noDataChart = document.getElementById('noDataChart');
@@ -498,15 +531,13 @@
             chartCanvas.classList.remove('hidden');
             noDataChart.classList.add('hidden');
 
-            // Mostrar solo los últimos 30 registros en el gráfico
-            const chartData = pressureData.slice(0, 30).reverse(); // Invertir para que el tiempo corra de izquierda a derecha
+            const chartData = pressureData.slice(0, 30).reverse(); 
 
-            const labels = chartData.map(record => formatDateTime(record.date).split(' ')[0]); // Solo fecha
+            const labels = chartData.map(record => formatDateTime(record.date).split(' ')[0]); 
             const systolicValues = chartData.map(record => record.systolic);
             const diastolicValues = chartData.map(record => record.diastolic);
             const pulseValues = chartData.map(record => record.pulse);
 
-            // Asegurarse de tener valores para calcular el rango mínimo y máximo
             const minDiastolic = Math.min(...diastolicValues, 60);
             const maxPulse = Math.max(...pulseValues, 100);
             const minPulse = Math.min(...pulseValues, 50);
@@ -517,30 +548,30 @@
                     {
                         label: 'Sistólica (Máx)',
                         data: systolicValues,
-                        borderColor: 'rgb(79, 70, 229)', // Indigo 600
+                        borderColor: 'rgb(79, 70, 229)', 
                         backgroundColor: 'rgba(79, 70, 229, 0.2)',
                         tension: 0.3,
                         pointRadius: 5,
-                        yAxisID: 'y1', // Eje primario (izquierda)
+                        yAxisID: 'y1',
                     },
                     {
                         label: 'Diastólica (Mín)',
                         data: diastolicValues,
-                        borderColor: 'rgb(249, 115, 22)', // Orange 500
+                        borderColor: 'rgb(249, 115, 22)', 
                         backgroundColor: 'rgba(249, 115, 22, 0.2)',
                         tension: 0.3,
                         pointRadius: 5,
-                        yAxisID: 'y1', // Eje primario (izquierda)
+                        yAxisID: 'y1', 
                     },
                     {
                         label: 'Pulso (lpm)',
                         data: pulseValues,
-                        borderColor: 'rgb(6, 95, 212)', // Blue 700
+                        borderColor: 'rgb(6, 95, 212)', 
                         backgroundColor: 'rgba(6, 95, 212, 0.2)',
                         tension: 0.3,
                         pointRadius: 5,
-                        borderDash: [5, 5], // Línea discontinua para el pulso
-                        yAxisID: 'y2', // Eje secundario (derecha)
+                        borderDash: [5, 5], 
+                        yAxisID: 'y2', 
                     }
                 ]
             };
@@ -559,7 +590,6 @@
                         x: {
                             title: { display: true, text: 'Fecha de Registro' }
                         },
-                        // Eje Y Primario (Izquierda - Tensión)
                         y1: {
                             type: 'linear',
                             display: true,
@@ -568,12 +598,11 @@
                             min: minDiastolic - 10,
                             title: { display: true, text: 'Tensión (mmHg)' }
                         },
-                        // Eje Y Secundario (Derecha - Pulso)
                         y2: {
                             type: 'linear',
                             display: true,
                             position: 'right',
-                            grid: { drawOnChartArea: false }, // No dibujar cuadrícula para este eje
+                            grid: { drawOnChartArea: false }, 
                             min: minPulse - 10,
                             max: maxPulse + 10,
                             title: { display: true, text: 'Pulso (lpm)' }
@@ -582,30 +611,22 @@
                 }
             };
 
-            // Destruir el gráfico anterior si existe
             if (pressureChart) {
                 pressureChart.destroy();
             }
 
-            // Crear nuevo gráfico
             pressureChart = new Chart(chartCanvas, config);
         }
 
-        // --- FILTRADO DE DATOS POR FECHA ---
+        // --- EXPORTACIÓN Y FILTRADO DE DATOS ---
 
-        /**
-         * Filtra los datos de tensión arterial por el rango de fechas seleccionado en la UI.
-         * @returns {Array} - Array de registros filtrados y ordenados por fecha ascendente.
-         */
         function getFilteredData() {
             const startDateInput = document.getElementById('startDate').value;
             const endDateInput = document.getElementById('endDate').value;
             let filteredData = [...pressureData];
 
             if (startDateInput || endDateInput) {
-                // Si hay fecha de inicio, la ponemos a las 00:00:00 de ese día.
                 let start = startDateInput ? new Date(startDateInput + 'T00:00:00') : null;
-                // Si hay fecha de fin, la ponemos a las 23:59:59 de ese día para incluir todos los registros.
                 let end = endDateInput ? new Date(endDateInput + 'T23:59:59') : null;
 
                 filteredData = filteredData.filter(record => {
@@ -618,22 +639,143 @@
                 });
             }
 
-            // Ordenar ascendente por fecha, que es el orden lógico para un informe o PDF
+            // Ordenar ascendente por fecha para el PDF/Informe y JSON
             filteredData.sort((a, b) => new Date(a.date) - new Date(b.date));
 
             return filteredData;
         }
 
-        // --- EXPORTACIÓN A PDF (jsPDF) ---
+        /**
+         * Exporta los datos filtrados a un archivo JSON.
+         * @param {boolean} [isAutomatic=false] - Indica si la exportación es automática.
+         */
+        function exportToJson(isAutomatic = false) {
+            // El mapeo asegura que solo exportamos los datos esenciales (sin el ID local)
+            const dataToExport = pressureData.map(record => ({
+                date: record.date, 
+                systolic: record.systolic,
+                diastolic: record.diastolic,
+                pulse: record.pulse
+            })); 
+
+            if (dataToExport.length === 0) {
+                if (!isAutomatic) showMessage("No hay datos para exportar.", 'error');
+                return;
+            }
+
+            // Generar sello de tiempo completo para el nombre del archivo
+            const now = new Date();
+            const datePart = now.toISOString().slice(0, 10); // YYYY-MM-DD
+            const timePart = now.toLocaleTimeString('es-ES', { 
+                hour12: false, 
+                hour: '2-digit', 
+                minute: '2-digit', 
+                second: '2-digit' 
+            }).replace(/:/g, '-'); // HH-MM-SS
+
+            const fileName = `backup_tension_arterial_${datePart}_${timePart}.json`;
+
+            const jsonString = JSON.stringify(dataToExport, null, 2);
+            const blob = new Blob([jsonString], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            if (!isAutomatic) {
+                 showMessage(`Exportados ${dataToExport.length} registros a: ${fileName}. Búscalo en tu carpeta de Descargas.`, 'success');
+            } else {
+                 console.log(`Backup automático generado: ${fileName} con ${dataToExport.length} registros.`);
+            }
+        }
+        
+        /**
+         * Maneja la subida de un archivo JSON y llama a la importación.
+         */
+        function handleJsonImport(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            showCustomModal(
+                'Confirmar Importación',
+                `¿Estás seguro de que quieres importar el archivo ${file.name}? Estos registros se añadirán a tu historial local.`,
+                [
+                    { text: 'Cancelar', class: 'bg-gray-200 text-gray-700 hover:bg-gray-300', action: hideCustomModal },
+                    { text: 'Importar', class: 'bg-green-600 text-white hover:bg-green-700', action: () => {
+                        importFromJson(file);
+                        hideCustomModal();
+                    }}
+                ]
+            );
+            // Limpiar el input para permitir re-selección del mismo archivo
+            event.target.value = '';
+        }
 
         /**
-         * Exporta el historial filtrado de registros a un archivo PDF.
+         * Lee un archivo JSON y lo importa al localStorage.
+         * @param {File} file - El archivo JSON cargado por el usuario.
          */
+        function importFromJson(file) {
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                try {
+                    const importedData = JSON.parse(e.target.result);
+                    if (!Array.isArray(importedData)) {
+                        showMessage("El archivo JSON no contiene un formato de lista válido.", 'error');
+                        return;
+                    }
+
+                    // Filtrar datos válidos y añadir un ID único a cada uno
+                    const validRecords = importedData.filter(record => 
+                        record.date && 
+                        typeof record.systolic === 'number' && record.systolic > 0 && 
+                        typeof record.diastolic === 'number' && record.diastolic > 0 && 
+                        typeof record.pulse === 'number' && record.pulse > 0
+                    ).map(record => ({
+                        id: generateUUID(), // ¡Añadir ID único para poder borrarlo luego!
+                        date: record.date,
+                        systolic: record.systolic,
+                        diastolic: record.diastolic,
+                        pulse: record.pulse
+                    }));
+
+                    if (validRecords.length === 0) {
+                        showMessage("No se encontraron registros válidos para importar en el archivo.", 'error');
+                        return;
+                    }
+
+                    // Fusionar los datos importados con los existentes
+                    // Nota: Esto puede crear duplicados si importas el mismo archivo.
+                    pressureData = [...pressureData, ...validRecords];
+                    pressureData.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+                    saveDataToLocal();
+                    showMessage(`Se importaron ${validRecords.length} registros.`, 'success');
+                    updateUIBasedOnData();
+
+                } catch (error) {
+                    console.error("Error al procesar o subir el JSON:", error);
+                    showMessage("Error al leer o procesar el archivo de importación. Asegúrate de que el formato sea correcto.", 'error');
+                }
+            };
+            reader.onerror = () => {
+                showMessage("No se pudo leer el archivo.", 'error');
+            };
+            reader.readAsText(file);
+        }
+
+        // --- EXPORTACIÓN A PDF (jsPDF) ---
+        
         function exportToPdf() {
             const dataToExport = getFilteredData();
 
             if (dataToExport.length === 0) {
-                showMessage("No hay datos en el rango de fechas seleccionado para exportar.", 'error');
+                showMessage("No hay datos en el rango de fechas seleccionado para exportar a PDF.", 'error');
                 return;
             }
 
@@ -641,7 +783,6 @@
             const doc = new jsPDF();
             const today = new Date().toLocaleDateString('es-ES');
 
-            // Obtener el rango de fechas para el título
             const startDateInput = document.getElementById('startDate').value;
             const endDateInput = document.getElementById('endDate').value;
             let rangeTitle = "Historial Completo";
@@ -654,29 +795,24 @@
 
             let y = 20;
 
-            // Título principal
             doc.setFontSize(18);
-            doc.setTextColor(55, 65, 81); // Gris Oscuro
-            doc.text("Reporte de Tensión Arterial", 105, y, null, null, "center");
+            doc.setTextColor(55, 65, 81); 
+            doc.text("Reporte de Tensión Arterial (Local)", 105, y, null, null, "center");
             y += 7;
 
-            // Subtítulo (Rango)
             doc.setFontSize(12);
-            doc.setTextColor(79, 70, 229); // Indigo 600
+            doc.setTextColor(79, 70, 229); 
             doc.text(rangeTitle, 105, y, null, null, "center");
             y += 7;
 
-            // Fecha de Reporte
             doc.setFontSize(10);
             doc.setTextColor(107, 114, 128);
             doc.text(`Generado el: ${today}`, 105, y, null, null, "center");
             y += 10;
 
-            // Encabezados de la tabla
-            // NOTA: Estos son los valores promedio
             const headers = [["Fecha y Hora", "Sistólica (mmHg) Media", "Diastólica (mmHg) Media", "Pulso (lpm) Media"]];
 
-            // Cuerpo de la tabla
+            // Formatear los datos para jspdf-autotable
             const body = dataToExport.map(record => [
                 formatDateTime(record.date),
                 record.systolic.toString(),
@@ -684,79 +820,53 @@
                 record.pulse.toString()
             ]);
 
-            // Generar la tabla usando autoTable
+            // Usar autoTable (plugin de jspdf)
             doc.autoTable({
-                startY: y,
                 head: headers,
                 body: body,
-                theme: 'striped',
-                headStyles: { fillColor: [79, 70, 229], textColor: 255 },
-                styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak' },
-                columnStyles: { 0: { cellWidth: 40 }, 1: { cellWidth: 35 }, 2: { cellWidth: 35 }, 3: { cellWidth: 30 } },
-                didDrawPage: (data) => {
-                    // Pie de página con el número de página
-                    doc.setFontSize(8);
-                    doc.text("Página " + doc.internal.getNumberOfPages(), data.settings.margin.left, doc.internal.pageSize.height - 10);
-                }
+                startY: y,
+                styles: { fontSize: 9, cellPadding: 2, textColor: [51, 51, 51] },
+                headStyles: { fillColor: [79, 70, 229], textColor: 255, fontStyle: 'bold' },
+                alternateRowStyles: { fillColor: [240, 244, 255] },
+                margin: { top: 10, left: 10, right: 10, bottom: 10 },
             });
 
-            const fileDate = new Date().toISOString().slice(0, 10);
-            const fileName = `Reporte_Tension_Media_${fileDate}.pdf`;
+            const fileName = `reporte_tension_arterial_${new Date().toISOString().slice(0, 10)}.pdf`;
             doc.save(fileName);
         }
 
-        // --- MODAL PERSONALIZADO (Alternativa a alert/confirm) ---
+        // --- MODAL PERSONALIZADO ---
 
-        /**
-         * Muestra el modal personalizado para confirmaciones.
-         */
         function showCustomModal(title, message, buttons) {
             const modal = document.getElementById('customModal');
             document.getElementById('modalTitle').textContent = title;
             document.getElementById('modalMessage').textContent = message;
-            const btnContainer = document.getElementById('modalButtons');
-            btnContainer.innerHTML = '';
+            
+            const buttonContainer = document.getElementById('modalButtons');
+            buttonContainer.innerHTML = '';
 
             buttons.forEach(btn => {
                 const buttonElement = document.createElement('button');
                 buttonElement.textContent = btn.text;
-                buttonElement.className = `py-2 px-4 rounded-lg text-sm font-medium transition duration-150 shadow-md ${btn.class}`;
+                buttonElement.className = `py-2 px-4 rounded-lg shadow-md text-sm font-medium transition duration-150 ${btn.class}`;
                 buttonElement.onclick = btn.action;
-                btnContainer.appendChild(buttonElement);
+                buttonContainer.appendChild(buttonElement);
             });
 
             modal.classList.remove('hidden');
-            modal.classList.add('flex');
         }
 
         function hideCustomModal() {
-            const modal = document.getElementById('customModal');
-            modal.classList.add('hidden');
-            modal.classList.remove('flex');
+            document.getElementById('customModal').classList.add('hidden');
         }
 
-
-        // --- INICIALIZACIÓN DE LA APP ---
+        // --- INICIALIZACIÓN ---
         window.onload = function() {
-            loadData();
             setInitialDateTime();
-            // Inicializa la app mostrando la sección de registro
-            showSection('registro');
-            // Carga inicial de la tabla (aunque esté oculta)
-            renderHistoryTable();
-            // Inicializa los promedios
-            calculateAndDisplayAverages();
+            calculateAndDisplayAverages(); // Inicializa los promedios y deshabilita el botón
+            loadDataFromLocal(); // Cargar los datos guardados al inicio
+            showSection('registro'); // Asegura que se muestre la pestaña de registro por defecto
         };
-
-        // Escucha el evento 'storage' para recargar si hay cambios en otra pestaña/ventana (opcional, pero buena práctica)
-        window.addEventListener('storage', (event) => {
-            if (event.key === 'bloodPressureRecords') {
-                loadData();
-                renderHistoryTable();
-                renderChart();
-            }
-        });
-
     </script>
 </body>
 </html>
