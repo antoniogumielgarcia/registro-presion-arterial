@@ -3,638 +3,758 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Monitor de Presión Arterial</title>
-    <!-- Tailwind CSS CDN -->
+    <title>Monitor de Tensión Arterial</title>
+    <!-- Carga de Tailwind CSS para un diseño responsivo -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Configuración de la fuente Inter -->
+    <!-- Carga de Chart.js para gráficos -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <!-- Carga de jsPDF para exportar a PDF (incluye autoTable para tablas) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://unpkg.com/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
-        body {
+        /* Configuración personalizada de Tailwind */
+        :root {
             font-family: 'Inter', sans-serif;
-            background-color: #f7f9fb;
         }
-        .scroll-container {
-            max-height: 400px;
+        .container {
+            max-width: 600px;
+        }
+        .chart-container {
+            height: 300px;
+        }
+        /* Estilos para el scroll en la tabla */
+        .scrollable-table {
+            max-height: 250px;
             overflow-y: auto;
         }
+        /* Color para la cabecera de la tabla de registros */
+        .registro-header {
+            background-color: #f0f4ff; /* Indigo 50 */
+        }
     </style>
-    <!-- Chart.js CDN para gráficos -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
-    <!-- jsPDF CDN para la exportación a PDF -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
-<body class="p-4 md:p-8">
-    <div class="max-w-7xl mx-auto">
-        <h1 class="text-4xl font-extrabold text-indigo-700 mb-6 border-b-4 border-indigo-200 pb-2">
-            Control de Tensión Arterial 🩺
-        </h1>
+<body class="bg-gray-50 p-4 min-h-screen">
 
-        <!-- Contenedor Principal: Input, Recordatorio y Gráfico -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            
-            <!-- Columna de Entrada de Datos y Recordatorios -->
-            <div class="lg:col-span-1 space-y-8">
-                
-                <!-- Tarjeta de Programación de Calendario (VISUALMENTE PRIMERO) -->
-                <div class="bg-white p-6 rounded-xl shadow-2xl border-t-8 border-red-500 transition duration-300 hover:shadow-red-200">
-                    <h2 class="text-2xl font-bold mb-4 text-red-600 flex items-center">
-                        <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-4 9h.01M3 21h18a2 2 0 002-2V7a2 2 0 00-2-2H3a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                        1. Programar Recordatorio en Calendario
-                    </h2>
-                    <p class="text-sm text-gray-600 mb-4">Establece cuándo y con qué frecuencia deseas tomar tu tensión.</p>
-                    <form id="reminder-form" class="space-y-4">
-                        <div>
-                            <label for="reminder-time" class="block text-sm font-medium text-gray-700">Hora de Toma Diaria</label>
-                            <input type="time" id="reminder-time" required class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-3 focus:border-red-500 focus:ring-red-500 transition duration-150">
-                        </div>
-                        <div>
-                            <label for="reminder-days" class="block text-sm font-medium text-gray-700">Recurrencia (Cada X días)</label>
-                            <input type="number" id="reminder-days" min="1" max="365" value="1" required class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-3 focus:border-red-500 focus:ring-red-500 transition duration-150">
-                        </div>
-                        <button type="submit" class="w-full py-3 px-4 border border-transparent rounded-lg shadow-md text-white bg-green-500 hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition duration-300 font-bold">
-                            Guardar Configuración
-                        </button>
-                    </form>
-                    
-                    <div id="reminder-output" class="mt-4 p-3 rounded-lg text-sm bg-red-50 border border-red-200">
-                        <p id="reminder-status" class="text-red-700 font-bold mb-2">Recordatorio no establecido.</p>
-                        <a id="calendar-link" href="#" target="_blank" class="hidden w-full inline-flex items-center justify-center py-2 px-4 border border-transparent rounded-lg shadow-md text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition duration-300 mt-2">
-                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-4 9h.01M3 21h18a2 2 0 002-2V7a2 2 0 00-2-2H3a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                            Abrir en Google Calendar
-                        </a>
-                        <p id="calendar-info" class="text-xs text-red-500 mt-2 hidden">
-                            IMPORTANTE: Haz clic en el botón y **configura la repetición** cada X días dentro de tu calendario.
-                        </p>
+    <div class="container mx-auto">
+        <h1 class="text-3xl font-bold text-center text-indigo-700 mt-2 mb-6">Monitor de Tensión Arterial</h1>
+
+        <!-- Pestañas de Navegación -->
+        <div class="flex border-b border-indigo-200 mb-6">
+            <button onclick="showSection('registro')" class="tab-button tab-registro flex-1 py-3 text-center text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-indigo-600 hover:border-indigo-400 transition duration-150 active-tab">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
+                Registrar (3 Tomas)
+            </button>
+            <button onclick="showSection('grafico')" class="tab-button tab-grafico flex-1 py-3 text-center text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-indigo-600 hover:border-indigo-400 transition duration-150">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>
+                Gráfico
+            </button>
+            <button onclick="showSection('historial')" class="tab-button tab-historial flex-1 py-3 text-center text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-indigo-600 hover:border-indigo-400 transition duration-150">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2m-4 5h4m-4 4h4m-6-4h.01M9 16h.01" /></svg>
+                Historial
+            </button>
+        </div>
+
+        <!-- SECCIÓN 1: REGISTRO DE DATOS -->
+        <div id="registro" class="section">
+            <div class="bg-white p-6 rounded-xl shadow-lg border border-indigo-100">
+                <form id="registroForm" class="space-y-6">
+
+                    <!-- Cabecera de Tomas -->
+                    <div class="grid grid-cols-4 gap-2 text-center text-xs font-semibold text-indigo-700 bg-indigo-50 p-2 rounded-lg shadow-inner">
+                        <div class="col-span-1 text-left pl-1">Métrica</div>
+                        <div class="col-span-1">Toma 1</div>
+                        <div class="col-span-1">Toma 2</div>
+                        <div class="col-span-1">Toma 3</div>
                     </div>
-                </div>
 
-                <!-- Tarjeta de Entrada de Lectura (Ahora es el punto 2) -->
-                <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
-                    <h2 class="text-2xl font-semibold mb-4 text-gray-800">2. Registrar Nueva Lectura</h2>
-                    <form id="reading-form" class="space-y-4">
-                        <div>
-                            <label for="systolic" class="block text-sm font-medium text-gray-700">Presión Sistólica (Máx)</label>
-                            <input type="number" id="systolic" placeholder="Ej: 120" required class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-3 focus:border-indigo-500 focus:ring-indigo-500 transition duration-150">
-                        </div>
-                        <div>
-                            <label for="diastolic" class="block text-sm font-medium text-gray-700">Presión Diastólica (Mín)</label>
-                            <input type="number" id="diastolic" placeholder="Ej: 80" required class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-3 focus:border-indigo-500 focus:ring-indigo-500 transition duration-150">
-                        </div>
-                        <div>
-                            <label for="pulse" class="block text-sm font-medium text-gray-700">Pulso (BPM)</label>
-                            <input type="number" id="pulse" placeholder="Ej: 75" required class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-3 focus:border-indigo-500 focus:ring-indigo-500 transition duration-150">
-                        </div>
-                        <button type="submit" id="save-reading-btn" class="w-full py-3 px-4 border border-transparent rounded-lg shadow-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-300 font-bold">
-                            Guardar Lectura
-                        </button>
-                        <div id="save-status" class="text-sm pt-2 text-center hidden"></div>
-                    </form>
-                </div>
-                
-            </div>
-
-            <!-- Columna de Gráfico e Historial -->
-            <div class="lg:col-span-2 space-y-8">
-
-                <!-- Tarjeta de Gráfico de Evolución -->
-                <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
-                    <h2 class="text-2xl font-semibold mb-4 text-gray-800">3. Gráfico de Evolución</h2>
-                    <div class="h-80 relative">
-                        <canvas id="bpChart"></canvas>
+                    <!-- Tensión Sistólica (Máxima) -->
+                    <div class="grid grid-cols-4 gap-2 items-center">
+                        <label class="col-span-1 text-sm font-medium text-gray-700">Sistólica (mmHg)</label>
+                        <input type="number" data-type="systolic" data-index="1" placeholder="1er" required class="col-span-1 w-full rounded-lg shadow-sm p-2 text-sm border border-gray-300 focus:border-indigo-500">
+                        <input type="number" data-type="systolic" data-index="2" placeholder="2do" required class="col-span-1 w-full rounded-lg shadow-sm p-2 text-sm border border-gray-300 focus:border-indigo-500">
+                        <input type="number" data-type="systolic" data-index="3" placeholder="3er" required class="col-span-1 w-full rounded-lg shadow-sm p-2 text-sm border border-gray-300 focus:border-indigo-500">
                     </div>
-                </div>
 
-                <!-- Tarjeta de Historial y Exportación -->
-                <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
-                    <div class="flex justify-between items-center mb-4">
-                        <h2 class="text-2xl font-semibold text-gray-800">4. Historial Completo</h2>
-                        <button id="export-pdf-btn" class="py-2 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition duration-300 flex items-center">
-                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                            Exportar a PDF
-                        </button>
+                    <!-- Tensión Diastólica (Mínima) -->
+                    <div class="grid grid-cols-4 gap-2 items-center">
+                        <label class="col-span-1 text-sm font-medium text-gray-700">Diastólica (mmHg)</label>
+                        <input type="number" data-type="diastolic" data-index="1" placeholder="1er" required class="col-span-1 w-full rounded-lg shadow-sm p-2 text-sm border border-gray-300 focus:border-indigo-500">
+                        <input type="number" data-type="diastolic" data-index="2" placeholder="2do" required class="col-span-1 w-full rounded-lg shadow-sm p-2 text-sm border border-gray-300 focus:border-indigo-500">
+                        <input type="number" data-type="diastolic" data-index="3" placeholder="3er" required class="col-span-1 w-full rounded-lg shadow-sm p-2 text-sm border border-gray-300 focus:border-indigo-500">
                     </div>
-                    
-                    <div class="scroll-container border rounded-lg">
-                        <table id="readings-table" class="min-w-full divide-y divide-gray-200">
-                            <thead class="bg-gray-50 sticky top-0">
-                                <tr>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha/Hora</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sistólica</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Diastólica</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pulso</th>
-                                </tr>
-                            </thead>
-                            <tbody id="readings-body" class="bg-white divide-y divide-gray-200">
-                                <!-- Las lecturas se insertarán aquí -->
-                                <tr><td colspan="4" class="text-center py-4 text-gray-500">Cargando datos...</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
 
+                    <!-- Pulso (Latidos por minuto) -->
+                    <div class="grid grid-cols-4 gap-2 items-center">
+                        <label class="col-span-1 text-sm font-medium text-gray-700">Pulso (lpm)</label>
+                        <input type="number" data-type="pulse" data-index="1" placeholder="1er" required class="col-span-1 w-full rounded-lg shadow-sm p-2 text-sm border border-gray-300 focus:border-indigo-500">
+                        <input type="number" data-type="pulse" data-index="2" placeholder="2do" required class="col-span-1 w-full rounded-lg shadow-sm p-2 text-sm border border-gray-300 focus:border-indigo-500">
+                        <input type="number" data-type="pulse" data-index="3" placeholder="3er" required class="col-span-1 w-full rounded-lg shadow-sm p-2 text-sm border border-gray-300 focus:border-indigo-500">
+                    </div>
+
+                    <!-- Promedios Calculados (Solo lectura) -->
+                    <div class="grid grid-cols-4 gap-2 items-center pt-2 border-t border-indigo-200">
+                        <label class="col-span-1 text-sm font-bold text-indigo-700">Media</label>
+                        <div id="avgSystolicDisplay" class="col-span-1 text-center font-bold text-lg text-indigo-600">-</div>
+                        <div id="avgDiastolicDisplay" class="col-span-1 text-center font-bold text-lg text-indigo-600">-</div>
+                        <div id="avgPulseDisplay" class="col-span-1 text-center font-bold text-lg text-indigo-600">-</div>
+                    </div>
+
+                    <!-- Fecha y Hora -->
+                    <div class="pt-4">
+                        <label for="dateTime" class="block text-sm font-medium text-gray-700">Fecha y Hora del Registro (Media)</label>
+                        <input type="datetime-local" id="dateTime" required class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-3 border">
+                    </div>
+
+                    <button type="submit" id="saveRecordBtn" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-lg text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-150 disabled:opacity-50" disabled>
+                        Guardar Media como Registro Oficial
+                    </button>
+                </form>
+                <div id="messageBox" class="mt-4 p-3 rounded-lg text-center hidden"></div>
             </div>
         </div>
+
+        <!-- SECCIÓN 2: GRÁFICO DE EVOLUCIÓN -->
+        <div id="grafico" class="section hidden">
+            <div class="bg-white p-6 rounded-xl shadow-lg border border-indigo-100">
+                <h2 class="text-xl font-semibold mb-4 text-indigo-700">Evolución (Últimos 30 Registros)</h2>
+                <div class="chart-container">
+                    <!-- Canvas donde se dibuja el gráfico -->
+                    <canvas id="pressureChart"></canvas>
+                </div>
+                <div id="noDataChart" class="hidden text-center text-gray-500 py-10">
+                    No hay suficientes datos para generar el gráfico. ¡Añade tu primer registro!
+                </div>
+            </div>
+        </div>
+
+        <!-- SECCIÓN 3: HISTORIAL Y EXPORTACIÓN -->
+        <div id="historial" class="section hidden">
+            <div class="bg-white p-6 rounded-xl shadow-lg border border-indigo-100">
+                <h2 class="text-xl font-semibold mb-4 text-indigo-700">Historial de Registros</h2>
+
+                <!-- Selección de Rango de Fechas para Exportación -->
+                <div class="flex flex-col sm:flex-row gap-4 mb-6 p-4 border border-indigo-200 rounded-lg bg-indigo-50/50">
+                    <div class="flex-1">
+                        <label for="startDate" class="block text-xs font-medium text-gray-700 mb-1">Exportar desde (opcional):</label>
+                        <input type="date" id="startDate" class="block w-full rounded-lg border-indigo-300 shadow-sm p-2 text-sm border">
+                    </div>
+                    <div class="flex-1">
+                        <label for="endDate" class="block text-xs font-medium text-gray-700 mb-1">Exportar hasta (opcional):</label>
+                        <input type="date" id="endDate" class="block w-full rounded-lg border-indigo-300 shadow-sm p-2 text-sm border">
+                    </div>
+                </div>
+
+                <!-- Contenedor de la tabla con scroll -->
+                <div class="scrollable-table mb-4 border border-gray-200 rounded-lg shadow-inner">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-indigo-50 sticky top-0">
+                            <tr>
+                                <th class="px-3 py-3 text-left text-xs font-medium text-indigo-700 uppercase tracking-wider">Fecha</th>
+                                <th class="px-3 py-3 text-left text-xs font-medium text-indigo-700 uppercase tracking-wider">Sistólica</th>
+                                <th class="px-3 py-3 text-left text-xs font-medium text-indigo-700 uppercase tracking-wider">Diastólica</th>
+                                <th class="px-3 py-3 text-left text-xs font-medium text-indigo-700 uppercase tracking-wider">Pulso</th>
+                                <th class="px-3 py-3 text-left text-xs font-medium text-indigo-700 uppercase tracking-wider">Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dataTableBody" class="bg-white divide-y divide-gray-100 text-sm">
+                            <!-- Los datos se insertarán aquí por JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div id="noDataHistory" class="text-center text-gray-500 py-4 hidden">
+                    Aún no tienes registros guardados.
+                </div>
+
+                <button id="exportPdfButton" onclick="exportToPdf()" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-lg text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition duration-150 mt-4 disabled:opacity-50" disabled>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                    Exportar Registros Filtrados a PDF
+                </button>
+            </div>
+        </div>
+
+        <!-- Modal personalizado (Sustituye a alert/confirm) -->
+        <div id="customModal" class="fixed inset-0 bg-gray-600 bg-opacity-75 hidden flex items-center justify-center p-4 z-50">
+            <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm">
+                <h3 id="modalTitle" class="text-lg font-semibold text-indigo-700 mb-4">Confirmación</h3>
+                <p id="modalMessage" class="text-sm text-gray-600 mb-6">¿Estás seguro de que quieres eliminar este registro?</p>
+                <div id="modalButtons" class="flex justify-end space-x-3">
+                    <!-- Los botones se insertan dinámicamente -->
+                </div>
+            </div>
+        </div>
+
     </div>
 
-    <!-- Firebase SDKs -->
-    <script type="module">
-        // Este error (Identifier already declared) suele ocurrir si hay otro 
-        // <script> de Firebase en tu página. ¡Asegúrate de que este sea el único!
-        
-        // --- Setup de Firebase y Autenticación ---
+    <script>
+        // --- VARIABLES GLOBALES ---
+        let pressureData = [];
+        let pressureChart = null;
 
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, onSnapshot, collection, query, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        
-        
-        // =====================================================================
-        // --- Configuración de Firebase: ¡EDITAR OBLIGATORIO! ---
-        // =====================================================================
-        // ASEGÚRATE DE QUE TU OBJETO DE CONFIGURACIÓN ESTÉ AQUÍ.
-        // Si la aplicación funciona en el Canvas, el objeto __firebase_config 
-        // tiene contenido. Para usarlo fuera, DEBES pegarlo manualmente aquí.
-        // Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
-
-// Your web app's Firebase configuration
-const firebaseConfig = {
-  apiKey: "AIzaSyDKyG2iJlbN0g-jg0iRNZ49iyR1AQeyLQg",
-  authDomain: "presion-arterial-3cc4f.firebaseapp.com",
-  projectId: "presion-arterial-3cc4f",
-  storageBucket: "presion-arterial-3cc4f.firebasestorage.app",
-  messagingSenderId: "989689849352",
-  appId: "1:989689849352:web:683f809e8acf0fd3d813bd"
-};
-
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);        
-        // Carga la configuración del entorno Canvas o usa un objeto vacío para forzar la edición
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {}; 
-
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null; 
-        
-        // =====================================================================
-        // --- FIN DE LA CONFIGURACIÓN (No tocar el resto del script) ---
-        // =====================================================================
-        
-
-        // Variables de la Aplicación
-        let db;
-        let auth;
-        let userId = null;
-        let chartInstance = null;
-        let allReadings = []; 
-
-        // Elementos del DOM
-        const readingForm = document.getElementById('reading-form');
-        const reminderForm = document.getElementById('reminder-form');
-        const readingsBody = document.getElementById('readings-body');
-        const exportPdfBtn = document.getElementById('export-pdf-btn');
-        const reminderStatus = document.getElementById('reminder-status');
-        const calendarLink = document.getElementById('calendar-link');
-        const calendarInfo = document.getElementById('calendar-info');
-        const saveStatus = document.getElementById('save-status');
-        const reminderTimeInput = document.getElementById('reminder-time');
-        const reminderDaysInput = document.getElementById('reminder-days');
-
-
-        // --- FUNCIONES DE UTILIDAD Y CORE ---
+        // --- FUNCIONES DE ALMACENAMIENTO (localStorage) ---
 
         /**
-         * Inicializa Firebase, autentica al usuario y comienza a escuchar los datos.
+         * Carga los datos de tensión arterial desde localStorage.
+         * Los ordena de más reciente a más antiguo por fecha.
          */
-        async function initializeAppAndAuth() {
+        function loadData() {
             try {
-                
-                // VERIFICACIÓN CLAVE: Asegura que la configuración tiene el projectId
-                const isConfigValid = firebaseConfig && firebaseConfig.projectId && firebaseConfig.apiKey;
-                
-                if (!isConfigValid) {
-                    console.error("Firebase no inicializado: La configuración es incompleta o no se ha insertado.");
-                    readingsBody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-red-500 font-bold">ERROR: CONFIGURACIÓN DE FIREBASE NO ENCONTRADA.</td></tr>';
+                const storedData = localStorage.getItem('bloodPressureRecords');
+                pressureData = storedData ? JSON.parse(storedData) : [];
+                // Asegurar que los datos estén ordenados de más reciente a más antiguo (para la tabla)
+                pressureData.sort((a, b) => new Date(b.date) - new Date(a.date));
+            } catch (e) {
+                console.error("Error cargando o parseando datos de localStorage:", e);
+                pressureData = [];
+            }
+        }
+
+        /**
+         * Guarda los datos de tensión arterial en localStorage.
+         */
+        function saveData() {
+            try {
+                localStorage.setItem('bloodPressureRecords', JSON.stringify(pressureData));
+            } catch (e) {
+                showMessage("Error guardando datos localmente.", 'error');
+                console.error("Error guardando datos en localStorage:", e);
+            }
+        }
+
+        // --- MANEJO DE UI Y ESTADO ---
+
+        /**
+         * Muestra u oculta una sección y actualiza el estado de la pestaña.
+         * @param {string} sectionId - El ID de la sección a mostrar ('registro', 'grafico', 'historial').
+         */
+        function showSection(sectionId) {
+            const sections = document.querySelectorAll('.section');
+            sections.forEach(sec => sec.classList.add('hidden'));
+
+            const tabs = document.querySelectorAll('.tab-button');
+            tabs.forEach(tab => {
+                tab.classList.remove('active-tab', 'border-indigo-600', 'text-indigo-600');
+                tab.classList.add('border-transparent', 'text-gray-500');
+            });
+
+            document.getElementById(sectionId).classList.remove('hidden');
+            document.querySelector(`.tab-${sectionId}`).classList.add('active-tab', 'border-indigo-600', 'text-indigo-600');
+            document.querySelector(`.tab-${sectionId}`).classList.remove('border-transparent', 'text-gray-500');
+
+            // Recargar contenido específico al cambiar de sección
+            if (sectionId === 'grafico') {
+                renderChart();
+            } else if (sectionId === 'historial') {
+                renderHistoryTable();
+            }
+        }
+
+        /**
+         * Muestra un mensaje temporal de éxito o error.
+         * @param {string} message - El mensaje a mostrar.
+         * @param {string} type - 'success' o 'error'.
+         */
+        function showMessage(message, type) {
+            const msgBox = document.getElementById('messageBox');
+            msgBox.textContent = message;
+            msgBox.classList.remove('hidden', 'bg-green-100', 'text-green-800', 'bg-red-100', 'text-red-800');
+
+            if (type === 'success') {
+                msgBox.classList.add('bg-green-100', 'text-green-800');
+            } else {
+                msgBox.classList.add('bg-red-100', 'text-red-800');
+            }
+
+            setTimeout(() => {
+                msgBox.classList.add('hidden');
+            }, 3000);
+        }
+
+        /**
+         * Genera un timestamp con formato legible.
+         * @param {string} dateString - String de fecha/hora ISO (yyyy-mm-ddThh:mm).
+         * @returns {string} - Fecha y hora con formato 'dd/mm/yyyy hh:mm'.
+         */
+        function formatDateTime(dateString) {
+            const date = new Date(dateString);
+            if (isNaN(date)) return 'Fecha Inválida';
+
+            const d = date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            const t = date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+            return `${d} ${t}`;
+        }
+
+        // --- MANEJO DE FORMULARIO Y DATOS ---
+
+        // Asigna la fecha y hora actual al campo de entrada al cargar
+        function setInitialDateTime() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            document.getElementById('dateTime').value = `${year}-${month}-${day}T${hours}:${minutes}`;
+        }
+
+        /**
+         * Función auxiliar para calcular el promedio de 3 valores.
+         * Redondea al entero más cercano.
+         * @param {number[]} values - Array de 3 números.
+         * @returns {number} - El promedio redondeado.
+         */
+        function calculateAverage(values) {
+            const sum = values.reduce((acc, val) => acc + val, 0);
+            return Math.round(sum / values.length);
+        }
+
+        /**
+         * Calcula y muestra los promedios de las 3 tomas.
+         */
+        function calculateAndDisplayAverages() {
+            const inputs = document.querySelectorAll('#registroForm input[type="number"]');
+            const readings = { systolic: [], diastolic: [], pulse: [] };
+            let allValid = true;
+
+            inputs.forEach(input => {
+                const type = input.dataset.type;
+                const value = parseInt(input.value);
+
+                if (isNaN(value) || value <= 0) {
+                    allValid = false;
                     return;
                 }
-
-                const app = initializeApp(firebaseConfig);
-                db = getFirestore(app);
-                auth = getAuth(app);
-                
-                await setPersistence(auth, browserLocalPersistence);
-
-                if (initialAuthToken) {
-                    await signInWithCustomToken(auth, initialAuthToken);
-                } else {
-                    await signInAnonymously(auth);
+                if (type) {
+                    readings[type].push(value);
                 }
-                
-                onAuthStateChanged(auth, (user) => {
-                    if (user) {
-                        userId = user.uid;
-                        console.log("Usuario autenticado. ID:", userId);
-                        
-                        loadReadings();
-                        loadReminder();
-                    } else {
-                        console.error("No se pudo autenticar al usuario.");
-                        readingsBody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-red-500">Error de autenticación.</td></tr>';
-                    }
-                });
+            });
 
-            } catch (error) {
-                // Aquí capturamos cualquier otro error de inicialización/conexión
-                console.error("Error FATAL al iniciar Firebase:", error.message);
-                readingsBody.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-red-500 font-bold">Error de Conexión. Revise Consola (F12): ${error.message}</td></tr>`;
+            const avgSystolicDisplay = document.getElementById('avgSystolicDisplay');
+            const avgDiastolicDisplay = document.getElementById('avgDiastolicDisplay');
+            const avgPulseDisplay = document.getElementById('avgPulseDisplay');
+            const saveButton = document.getElementById('saveRecordBtn');
+
+            // 9 inputs, 3 valores por tipo.
+            if (allValid && readings.systolic.length === 3 && readings.diastolic.length === 3 && readings.pulse.length === 3) {
+                const avgSystolic = calculateAverage(readings.systolic);
+                const avgDiastolic = calculateAverage(readings.diastolic);
+                const avgPulse = calculateAverage(readings.pulse);
+
+                avgSystolicDisplay.textContent = avgSystolic;
+                avgDiastolicDisplay.textContent = avgDiastolic;
+                avgPulseDisplay.textContent = avgPulse;
+                saveButton.disabled = false;
+                
+            } else {
+                avgSystolicDisplay.textContent = '-';
+                avgDiastolicDisplay.textContent = '-';
+                avgPulseDisplay.textContent = '-';
+                saveButton.disabled = true;
             }
         }
 
+        // Agrega listeners a todos los campos de número para recálculo instantáneo
+        document.querySelectorAll('#registroForm input[type="number"]').forEach(input => {
+            input.addEventListener('input', calculateAndDisplayAverages);
+        });
+
+
         /**
-         * Guarda una nueva lectura de tensión arterial en Firestore.
+         * Maneja el envío del formulario para añadir un nuevo registro (la media).
          */
-        async function saveReading(systolic, diastolic, pulse) {
-            if (!userId || !db) {
-                console.error("Error: Usuario o DB no autenticada/disponible.");
+        document.getElementById('registroForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const avgSystolic = parseInt(document.getElementById('avgSystolicDisplay').textContent);
+            const avgDiastolic = parseInt(document.getElementById('avgDiastolicDisplay').textContent);
+            const avgPulse = parseInt(document.getElementById('avgPulseDisplay').textContent);
+            const date = document.getElementById('dateTime').value; // Formato ISO para guardar
+
+            // Validación final basada en el resultado de la media
+            if (isNaN(avgSystolic) || isNaN(avgDiastolic) || isNaN(avgPulse) || avgSystolic <= 0) {
+                showMessage("Por favor, rellena las 3 tomas con valores válidos.", 'error');
                 return;
             }
 
-            // Ruta privada: /artifacts/{appId}/users/{userId}/blood_pressure_readings
-            const readingsCollectionRef = collection(db, 'artifacts', appId, 'users', userId, 'blood_pressure_readings');
-            
-            try {
-                await addDoc(readingsCollectionRef, {
-                    systolic: Number(systolic),
-                    diastolic: Number(diastolic),
-                    pulse: Number(pulse),
-                    timestamp: serverTimestamp() 
-                });
-                
-                saveStatus.textContent = '¡Lectura guardada con éxito!';
-                saveStatus.className = 'text-sm pt-2 text-center text-green-600 font-medium block';
-                readingForm.reset();
-            } catch (error) {
-                console.error("Error al guardar la lectura:", error);
-                saveStatus.textContent = 'Error al guardar. ¿Reglas de Seguridad publicadas?';
-                saveStatus.className = 'text-sm pt-2 text-center text-red-600 font-medium block';
-            }
-            setTimeout(() => { saveStatus.classList.add('hidden'); }, 3000);
-        }
+            const newRecord = {
+                id: Date.now(), // ID único basado en timestamp
+                date: date,
+                systolic: avgSystolic,
+                diastolic: avgDiastolic,
+                pulse: avgPulse
+            };
+
+            pressureData.push(newRecord);
+            pressureData.sort((a, b) => new Date(b.date) - new Date(a.date)); // Reordenar
+
+            saveData();
+            showMessage(`Registro de Media (${avgSystolic}/${avgDiastolic}/${avgPulse}) guardado con éxito.`, 'success');
+
+            // Limpiar formulario, restablecer fecha/hora y promedios
+            document.getElementById('registroForm').reset();
+            setInitialDateTime();
+            calculateAndDisplayAverages(); // Restablece los displays
+        });
+
 
         /**
-         * Escucha los datos en tiempo real (onSnapshot) y actualiza la tabla y el gráfico.
+         * Elimina un registro por su ID.
+         * @param {number} id - El ID del registro a eliminar.
          */
-        function loadReadings() {
-            if (!userId || !db) return;
-
-            const readingsCollectionRef = collection(db, 'artifacts', appId, 'users', userId, 'blood_pressure_readings');
-            const readingsQuery = query(readingsCollectionRef); 
-
-            onSnapshot(readingsQuery, (snapshot) => {
-                const data = [];
-                snapshot.forEach(doc => {
-                    const timestamp = doc.data().timestamp ? doc.data().timestamp.toDate() : new Date();
-                    data.push({ id: doc.id, ...doc.data(), date: timestamp });
-                });
-
-                data.sort((a, b) => b.date.getTime() - a.date.getTime());
-                allReadings = data; 
-                
-                renderTable(data);
-                renderChart(data);
-            }, (error) => {
-                console.error("Error al escuchar los datos:", error);
-                readingsBody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-red-500">Error al cargar el historial. ¡Revisa las Reglas de Seguridad!</td></tr>';
-            });
-        }
-
-        /**
-         * Renderiza la tabla de historial.
-         */
-        function renderTable(data) {
-            readingsBody.innerHTML = '';
-            if (data.length === 0) {
-                readingsBody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-gray-500">Aún no hay lecturas registradas.</td></tr>';
-                exportPdfBtn.disabled = true;
-                exportPdfBtn.classList.add('opacity-50', 'cursor-not-allowed');
-                return;
-            }
-
-            exportPdfBtn.disabled = false;
-            exportPdfBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-
-            data.forEach(reading => {
-                const dateStr = reading.date.toLocaleString('es-ES', { 
-                    year: 'numeric', month: 'short', day: 'numeric', 
-                    hour: '2-digit', minute: '2-digit' 
-                });
-                const row = `
-                    <tr class="hover:bg-indigo-50 transition duration-150">
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${dateStr}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${reading.systolic}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${reading.diastolic}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${reading.pulse}</td>
-                    </tr>
-                `;
-                readingsBody.innerHTML += row;
-            });
-        }
-
-        /**
-         * Renderiza o actualiza el gráfico de evolución con Chart.js.
-         */
-        function renderChart(data) {
-            // Clonar y ordenar por fecha ASCENDENTE para el gráfico (de más antiguo a más nuevo)
-            const sortedData = [...data].sort((a, b) => a.date.getTime() - a.date.getTime());
-
-            const labels = sortedData.map(d => 
-                d.date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' }) + 
-                ' ' + 
-                d.date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+        function deleteRecord(id) {
+            showCustomModal(
+                'Confirmar Eliminación',
+                '¿Estás seguro de que deseas eliminar este registro de tensión arterial (la media)? Esta acción no se puede deshacer.',
+                [
+                    { text: 'Cancelar', class: 'bg-gray-200 text-gray-700 hover:bg-gray-300', action: hideCustomModal },
+                    { text: 'Eliminar', class: 'bg-red-600 text-white hover:bg-red-700', action: () => {
+                        pressureData = pressureData.filter(record => record.id !== id);
+                        saveData();
+                        renderHistoryTable();
+                        renderChart();
+                        hideCustomModal();
+                        showMessage("Registro de media eliminado.", 'success');
+                    }}
+                ]
             );
-            const systolicValues = sortedData.map(d => d.systolic);
-            const diastolicValues = sortedData.map(d => d.diastolic);
-            const pulseValues = sortedData.map(d => d.pulse); 
+        }
 
-            if (chartInstance) {
-                chartInstance.data.labels = labels;
-                chartInstance.data.datasets[0].data = systolicValues;
-                chartInstance.data.datasets[1].data = diastolicValues;
-                chartInstance.data.datasets[2].data = pulseValues; 
-                chartInstance.update();
+        /**
+         * Renderiza la tabla de historial en la sección 'historial'.
+         */
+        function renderHistoryTable() {
+            const tbody = document.getElementById('dataTableBody');
+            const noDataMessage = document.getElementById('noDataHistory');
+            const exportButton = document.getElementById('exportPdfButton');
+
+            tbody.innerHTML = ''; // Limpiar tabla
+
+            if (pressureData.length === 0) {
+                noDataMessage.classList.remove('hidden');
+                exportButton.disabled = true;
                 return;
             }
 
-            const ctx = document.getElementById('bpChart').getContext('2d');
-            chartInstance = new Chart(ctx, {
+            noDataMessage.classList.add('hidden');
+            exportButton.disabled = false;
+
+            pressureData.forEach(record => {
+                const row = tbody.insertRow();
+                row.className = 'hover:bg-indigo-50 transition duration-100';
+
+                // Fecha
+                const dateCell = row.insertCell();
+                dateCell.textContent = formatDateTime(record.date);
+                dateCell.className = 'px-3 py-2 whitespace-nowrap text-gray-900';
+
+                // Sistólica
+                const systolicCell = row.insertCell();
+                systolicCell.textContent = record.systolic;
+                systolicCell.className = 'px-3 py-2 whitespace-nowrap font-medium';
+
+                // Diastólica
+                const diastolicCell = row.insertCell();
+                diastolicCell.textContent = record.diastolic;
+                diastolicCell.className = 'px-3 py-2 whitespace-nowrap';
+
+                // Pulso
+                const pulseCell = row.insertCell();
+                pulseCell.textContent = record.pulse;
+                pulseCell.className = 'px-3 py-2 whitespace-nowrap';
+
+                // Acción (Botón de eliminar)
+                const actionCell = row.insertCell();
+                const deleteButton = document.createElement('button');
+                deleteButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-red-500 hover:text-red-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>`;
+                deleteButton.title = 'Eliminar registro';
+                deleteButton.onclick = () => deleteRecord(record.id);
+                deleteButton.className = 'p-1 rounded-full hover:bg-red-100 transition duration-150';
+                actionCell.appendChild(deleteButton);
+                actionCell.className = 'px-3 py-2 text-center';
+            });
+        }
+
+        // --- MANEJO DE GRÁFICOS (Chart.js) ---
+
+        /**
+         * Renderiza el gráfico de evolución de la tensión y pulso.
+         */
+        function renderChart() {
+            const chartCanvas = document.getElementById('pressureChart');
+            const noDataChart = document.getElementById('noDataChart');
+
+            if (pressureData.length < 1) {
+                if (pressureChart) {
+                    pressureChart.destroy();
+                    pressureChart = null;
+                }
+                chartCanvas.classList.add('hidden');
+                noDataChart.classList.remove('hidden');
+                return;
+            }
+
+            chartCanvas.classList.remove('hidden');
+            noDataChart.classList.add('hidden');
+
+            // Mostrar solo los últimos 30 registros en el gráfico
+            const chartData = pressureData.slice(0, 30).reverse(); // Invertir para que el tiempo corra de izquierda a derecha
+
+            const labels = chartData.map(record => formatDateTime(record.date).split(' ')[0]); // Solo fecha
+            const systolicValues = chartData.map(record => record.systolic);
+            const diastolicValues = chartData.map(record => record.diastolic);
+            const pulseValues = chartData.map(record => record.pulse);
+
+            // Asegurarse de tener valores para calcular el rango mínimo y máximo
+            const minDiastolic = Math.min(...diastolicValues, 60);
+            const maxPulse = Math.max(...pulseValues, 100);
+            const minPulse = Math.min(...pulseValues, 50);
+
+            const data = {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Sistólica (Máx)',
+                        data: systolicValues,
+                        borderColor: 'rgb(79, 70, 229)', // Indigo 600
+                        backgroundColor: 'rgba(79, 70, 229, 0.2)',
+                        tension: 0.3,
+                        pointRadius: 5,
+                        yAxisID: 'y1', // Eje primario (izquierda)
+                    },
+                    {
+                        label: 'Diastólica (Mín)',
+                        data: diastolicValues,
+                        borderColor: 'rgb(249, 115, 22)', // Orange 500
+                        backgroundColor: 'rgba(249, 115, 22, 0.2)',
+                        tension: 0.3,
+                        pointRadius: 5,
+                        yAxisID: 'y1', // Eje primario (izquierda)
+                    },
+                    {
+                        label: 'Pulso (lpm)',
+                        data: pulseValues,
+                        borderColor: 'rgb(6, 95, 212)', // Blue 700
+                        backgroundColor: 'rgba(6, 95, 212, 0.2)',
+                        tension: 0.3,
+                        pointRadius: 5,
+                        borderDash: [5, 5], // Línea discontinua para el pulso
+                        yAxisID: 'y2', // Eje secundario (derecha)
+                    }
+                ]
+            };
+
+            const config = {
                 type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [
-                        {
-                            label: 'Sistólica',
-                            data: systolicValues,
-                            borderColor: '#4f46e5', // Índigo
-                            backgroundColor: 'rgba(79, 70, 229, 0.1)',
-                            tension: 0.3,
-                            fill: false,
-                            pointRadius: 5
-                        },
-                        {
-                            label: 'Diastólica',
-                            data: diastolicValues,
-                            borderColor: '#10b981', // Verde esmeralda
-                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                            tension: 0.3,
-                            fill: false,
-                            pointRadius: 5
-                        },
-                        // LÍNEA PARA EL PULSO
-                        {
-                            label: 'Pulso (BPM)', 
-                            data: pulseValues,
-                            borderColor: '#f59e0b', // Ámbar (Naranja)
-                            backgroundColor: 'rgba(245, 158, 11, 0.1)',
-                            tension: 0.3,
-                            fill: false,
-                            pointRadius: 5
-                        }
-                    ]
-                },
+                data: data,
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            beginAtZero: false,
-                            title: {
-                                display: true,
-                                // Título de eje Y actualizado para incluir BPM
-                                text: 'Valores (mmHg / BPM)' 
-                            }
-                        },
-                        x: {
-                            title: {
-                                display: true,
-                                text: 'Fecha y Hora'
-                            }
-                        }
-                    },
                     plugins: {
-                        legend: {
-                            position: 'top',
+                        legend: { position: 'top', labels: { font: { size: 12 } } },
+                        title: { display: true, text: 'Tensión y Pulso (Media de Tomas)' }
+                    },
+                    scales: {
+                        x: {
+                            title: { display: true, text: 'Fecha de Registro' }
                         },
-                        title: {
+                        // Eje Y Primario (Izquierda - Tensión)
+                        y1: {
+                            type: 'linear',
                             display: true,
-                            text: 'Evolución de la Presión Arterial y Pulso' // Título del gráfico actualizado
+                            position: 'left',
+                            beginAtZero: false,
+                            min: minDiastolic - 10,
+                            title: { display: true, text: 'Tensión (mmHg)' }
+                        },
+                        // Eje Y Secundario (Derecha - Pulso)
+                        y2: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            grid: { drawOnChartArea: false }, // No dibujar cuadrícula para este eje
+                            min: minPulse - 10,
+                            max: maxPulse + 10,
+                            title: { display: true, text: 'Pulso (lpm)' }
                         }
                     }
                 }
-            });
-        }
+            };
 
-        /**
-         * Carga la configuración del recordatorio desde Firestore y genera el enlace.
-         */
-        function loadReminder() {
-            if (!userId || !db) return;
-            // Ruta para la configuración: /artifacts/{appId}/users/{userId}/settings/bp_tracker_settings
-            const settingsDocRef = doc(db, 'artifacts', appId, 'users', userId, 'settings', 'bp_tracker_settings');
-            
-            onSnapshot(settingsDocRef, (docSnap) => {
-                if (docSnap.exists()) {
-                    const data = docSnap.data();
-                    const reminderTime = data.reminderTime || '';
-                    const reminderDays = data.reminderDays || 1;
-
-                    reminderTimeInput.value = reminderTime;
-                    reminderDaysInput.value = reminderDays;
-                    
-                    if (reminderTime) {
-                        generateCalendarLink(reminderTime, reminderDays);
-
-                        let statusText = `Hora de recordatorio guardada: ${reminderTime}.`;
-                        if (reminderDays > 1) {
-                             statusText += ` Frecuencia: Cada ${reminderDays} días.`;
-                        } else {
-                            statusText += ` Frecuencia: Diaria.`;
-                        }
-                        reminderStatus.textContent = statusText;
-
-                    } else {
-                        reminderStatus.textContent = 'Hora de recordatorio no establecida.';
-                        calendarLink.classList.add('hidden');
-                        calendarInfo.classList.add('hidden');
-                    }
-                } else {
-                    reminderStatus.textContent = 'Hora de recordatorio no establecida.';
-                    calendarLink.classList.add('hidden');
-                    calendarInfo.classList.add('hidden');
-                }
-            }, (error) => {
-                console.error("Error al cargar la hora de recordatorio:", error);
-            });
-        }
-
-        /**
-         * Genera la URL para crear un evento en Google Calendar.
-         */
-        function generateCalendarLink(timeString, days) {
-            const [hours, minutes] = timeString.split(':');
-            
-            // Usamos la fecha de mañana para el evento inicial
-            const tomorrow = new Date();
-            tomorrow.setDate(tomorrow.getDate() + 1);
-            
-            const startYear = tomorrow.getFullYear();
-            const startMonth = String(tomorrow.getMonth() + 1).padStart(2, '0');
-            const startDay = String(tomorrow.getDate()).padStart(2, '0');
-            const startHour = hours.padStart(2, '0');
-            const startMinute = minutes.padStart(2, '0');
-            
-            const dateTimeStart = `${startYear}${startMonth}${startDay}T${startHour}${startMinute}00`;
-            
-            let endHour = Number(hours);
-            let endMinute = Number(minutes) + 5; // Evento de 5 minutos
-            if (endMinute >= 60) {
-                endMinute -= 60;
-                endHour += 1;
-            }
-            const endHourStr = String(endHour).padStart(2, '0');
-            const endMinuteStr = String(endMinute).padStart(2, '0');
-            
-            const dateTimeEnd = `${startYear}${startMonth}${startDay}T${endHourStr}${endMinuteStr}00`;
-
-            const title = encodeURIComponent("⏰ TOMA DE TENSIÓN ARTERIAL");
-            
-            let detailsText = `Es hora de registrar tu presión arterial (Sistólica, Diastólica y Pulso) en la aplicación.`;
-            if (days > 1) {
-                detailsText += `\n\nATENCIÓN: Configura este evento para que se repita CADA ${days} DÍAS en tu calendario.`;
-            } else {
-                detailsText += `\n\nATENCIÓN: Configura este evento para que se repita DIARIAMENTE.`;
+            // Destruir el gráfico anterior si existe
+            if (pressureChart) {
+                pressureChart.destroy();
             }
 
-            const details = encodeURIComponent(detailsText);
-            const location = encodeURIComponent("Aplicación de Control de Tensión Arterial");
-
-            // URL para Google Calendar
-            const googleCalendarUrl = `https://www.google.com/calendar/render?action=TEMPLATE&text=${title}&details=${details}&location=${location}&dates=${dateTimeStart}/${dateTimeEnd}&sf=true&output=xml`;
-
-            calendarLink.href = googleCalendarUrl;
-            calendarLink.classList.remove('hidden');
-            calendarInfo.classList.remove('hidden');
+            // Crear nuevo gráfico
+            pressureChart = new Chart(chartCanvas, config);
         }
 
+        // --- FILTRADO DE DATOS POR FECHA ---
+
         /**
-         * Exporta el historial completo a un documento PDF.
+         * Filtra los datos de tensión arterial por el rango de fechas seleccionado en la UI.
+         * @returns {Array} - Array de registros filtrados y ordenados por fecha ascendente.
          */
-        function exportToPDF() {
-            if (allReadings.length === 0) {
-                saveStatus.textContent = 'No hay datos para exportar a PDF.';
-                saveStatus.className = 'text-sm pt-2 text-center text-red-600 font-medium block';
-                setTimeout(() => { saveStatus.classList.add('hidden'); }, 3000);
+        function getFilteredData() {
+            const startDateInput = document.getElementById('startDate').value;
+            const endDateInput = document.getElementById('endDate').value;
+            let filteredData = [...pressureData];
+
+            if (startDateInput || endDateInput) {
+                // Si hay fecha de inicio, la ponemos a las 00:00:00 de ese día.
+                let start = startDateInput ? new Date(startDateInput + 'T00:00:00') : null;
+                // Si hay fecha de fin, la ponemos a las 23:59:59 de ese día para incluir todos los registros.
+                let end = endDateInput ? new Date(endDateInput + 'T23:59:59') : null;
+
+                filteredData = filteredData.filter(record => {
+                    const recordDate = new Date(record.date);
+
+                    let isAfterStart = start ? recordDate >= start : true;
+                    let isBeforeEnd = end ? recordDate <= end : true;
+
+                    return isAfterStart && isBeforeEnd;
+                });
+            }
+
+            // Ordenar ascendente por fecha, que es el orden lógico para un informe o PDF
+            filteredData.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+            return filteredData;
+        }
+
+        // --- EXPORTACIÓN A PDF (jsPDF) ---
+
+        /**
+         * Exporta el historial filtrado de registros a un archivo PDF.
+         */
+        function exportToPdf() {
+            const dataToExport = getFilteredData();
+
+            if (dataToExport.length === 0) {
+                showMessage("No hay datos en el rango de fechas seleccionado para exportar.", 'error');
                 return;
             }
 
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
-            
-            // Título
-            doc.setFontSize(18);
-            doc.setTextColor(50, 50, 50);
-            doc.text("Historial de Presión Arterial", 14, 22);
+            const today = new Date().toLocaleDateString('es-ES');
 
+            // Obtener el rango de fechas para el título
+            const startDateInput = document.getElementById('startDate').value;
+            const endDateInput = document.getElementById('endDate').value;
+            let rangeTitle = "Historial Completo";
+
+            if (startDateInput || endDateInput) {
+                const startText = startDateInput ? new Date(startDateInput).toLocaleDateString('es-ES') : 'Inicio';
+                const endText = endDateInput ? new Date(endDateInput).toLocaleDateString('es-ES') : today;
+                rangeTitle = `Rango de Fechas: ${startText} - ${endText}`;
+            }
+
+            let y = 20;
+
+            // Título principal
+            doc.setFontSize(18);
+            doc.setTextColor(55, 65, 81); // Gris Oscuro
+            doc.text("Reporte de Tensión Arterial", 105, y, null, null, "center");
+            y += 7;
+
+            // Subtítulo (Rango)
+            doc.setFontSize(12);
+            doc.setTextColor(79, 70, 229); // Indigo 600
+            doc.text(rangeTitle, 105, y, null, null, "center");
+            y += 7;
+
+            // Fecha de Reporte
             doc.setFontSize(10);
-            doc.setTextColor(150, 150, 150);
-            doc.text(`Generado el: ${new Date().toLocaleString('es-ES')}`, 14, 30);
-            doc.text(`ID de Usuario: ${userId}`, 14, 35);
-            
-            // Preparar datos para la tabla
-            const headers = [
-                ["Fecha/Hora", "Sistólica (mmHg)", "Diastólica (mmHg)", "Pulso (BPM)"]
-            ];
-            const data = allReadings.map(r => [
-                r.date.toLocaleString('es-ES'),
-                r.systolic.toString(),
-                r.diastolic.toString(),
-                r.pulse.toString()
+            doc.setTextColor(107, 114, 128);
+            doc.text(`Generado el: ${today}`, 105, y, null, null, "center");
+            y += 10;
+
+            // Encabezados de la tabla
+            // NOTA: Estos son los valores promedio
+            const headers = [["Fecha y Hora", "Sistólica (mmHg) Media", "Diastólica (mmHg) Media", "Pulso (lpm) Media"]];
+
+            // Cuerpo de la tabla
+            const body = dataToExport.map(record => [
+                formatDateTime(record.date),
+                record.systolic.toString(),
+                record.diastolic.toString(),
+                record.pulse.toString()
             ]);
 
-            // Agregar la tabla al PDF
+            // Generar la tabla usando autoTable
             doc.autoTable({
-                startY: 45,
+                startY: y,
                 head: headers,
-                body: data,
+                body: body,
+                theme: 'striped',
+                headStyles: { fillColor: [79, 70, 229], textColor: 255 },
                 styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak' },
-                headStyles: { fillColor: [79, 70, 229] }, 
-                alternateRowStyles: { fillColor: [240, 240, 240] },
-                margin: { top: 10, left: 14, right: 14, bottom: 10 },
+                columnStyles: { 0: { cellWidth: 40 }, 1: { cellWidth: 35 }, 2: { cellWidth: 35 }, 3: { cellWidth: 30 } },
+                didDrawPage: (data) => {
+                    // Pie de página con el número de página
+                    doc.setFontSize(8);
+                    doc.text("Página " + doc.internal.getNumberOfPages(), data.settings.margin.left, doc.internal.pageSize.height - 10);
+                }
             });
 
-            // Guardar el PDF
-            doc.save(`Historial_PA_${new Date().toISOString().slice(0, 10)}.pdf`);
+            const fileDate = new Date().toISOString().slice(0, 10);
+            const fileName = `Reporte_Tension_Media_${fileDate}.pdf`;
+            doc.save(fileName);
         }
 
-        // --- MANEJADORES DE EVENTOS ---
+        // --- MODAL PERSONALIZADO (Alternativa a alert/confirm) ---
 
-        readingForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            const systolic = document.getElementById('systolic').value;
-            const diastolic = document.getElementById('diastolic').value;
-            const pulse = document.getElementById('pulse').value;
-            
-            if (systolic && diastolic && pulse) {
-                saveReading(systolic, diastolic, pulse);
+        /**
+         * Muestra el modal personalizado para confirmaciones.
+         */
+        function showCustomModal(title, message, buttons) {
+            const modal = document.getElementById('customModal');
+            document.getElementById('modalTitle').textContent = title;
+            document.getElementById('modalMessage').textContent = message;
+            const btnContainer = document.getElementById('modalButtons');
+            btnContainer.innerHTML = '';
+
+            buttons.forEach(btn => {
+                const buttonElement = document.createElement('button');
+                buttonElement.textContent = btn.text;
+                buttonElement.className = `py-2 px-4 rounded-lg text-sm font-medium transition duration-150 shadow-md ${btn.class}`;
+                buttonElement.onclick = btn.action;
+                btnContainer.appendChild(buttonElement);
+            });
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function hideCustomModal() {
+            const modal = document.getElementById('customModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+
+        // --- INICIALIZACIÓN DE LA APP ---
+        window.onload = function() {
+            loadData();
+            setInitialDateTime();
+            // Inicializa la app mostrando la sección de registro
+            showSection('registro');
+            // Carga inicial de la tabla (aunque esté oculta)
+            renderHistoryTable();
+            // Inicializa los promedios
+            calculateAndDisplayAverages();
+        };
+
+        // Escucha el evento 'storage' para recargar si hay cambios en otra pestaña/ventana (opcional, pero buena práctica)
+        window.addEventListener('storage', (event) => {
+            if (event.key === 'bloodPressureRecords') {
+                loadData();
+                renderHistoryTable();
+                renderChart();
             }
         });
 
-        reminderForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            if (!userId || !db) {
-                reminderStatus.textContent = "Error: La aplicación no está lista o Firebase no está configurado.";
-                reminderStatus.className = 'text-red-700 font-bold';
-                return;
-            }
-            const reminderTime = reminderTimeInput.value;
-            const reminderDays = parseInt(reminderDaysInput.value, 10);
-
-            if (!reminderTime || isNaN(reminderDays) || reminderDays < 1) {
-                reminderStatus.textContent = 'Por favor, introduce una hora y un número de días válido (mínimo 1).';
-                reminderStatus.className = 'text-red-700 font-bold';
-                return;
-            }
-
-            const settingsDocRef = doc(db, 'artifacts', appId, 'users', userId, 'settings', 'bp_tracker_settings');
-            
-            try {
-                // 1. Guardar la hora y la frecuencia en Firestore
-                await setDoc(settingsDocRef, { 
-                    reminderTime: reminderTime,
-                    reminderDays: reminderDays 
-                }, { merge: true });
-                
-                // 2. Generar el enlace de calendario
-                generateCalendarLink(reminderTime, reminderDays);
-                
-                // 3. Mostrar estado
-                let statusText = `Hora de recordatorio guardada: ${reminderTime}. Frecuencia: Cada ${reminderDays} días.`;
-                if (reminderDays === 1) statusText = `Hora de recordatorio guardada: ${reminderTime}. Frecuencia: Diaria.`;
-                
-                reminderStatus.textContent = statusText;
-                
-            } catch (error) {
-                console.error("Error al establecer el recordatorio:", error);
-                reminderStatus.textContent = 'Error al guardar la configuración. Intenta de nuevo.';
-                reminderStatus.className = 'text-red-700 font-bold';
-            }
-        });
-
-        exportPdfBtn.addEventListener('click', exportToPDF);
-        
-        // Carga inicial
-        initializeAppAndAuth();
     </script>
-    <!-- Importar autoTable para jsPDF -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 </body>
 </html>
